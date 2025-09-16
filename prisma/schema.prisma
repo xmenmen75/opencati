@@ -1,0 +1,143 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 BigInt   @id @default(autoincrement())
+  walletAddress      String   @unique @map("wallet_address") @db.VarChar(255)
+  userNickname       String   @unique @map("user_nickname") @db.VarChar(100)
+  profilePictureUrl  String?  @map("profile_picture_url") @db.VarChar(500)
+  catiBalance        BigInt   @default(0) @map("cati_balance")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  // Relations
+  userCards         UserCard[]
+  seasonRewards     SeasonReward[]
+  catiTransactions  CatiTransaction[]
+  withdrawals       Withdrawal[]
+  deposits          Deposit[]
+
+  @@map("users")
+}
+
+model Card {
+  id                   Int      @id @default(autoincrement())
+  rank                 String   @db.VarChar(2) // A, AA, S, or SS
+  poolSharePercentage  Decimal  @map("pool_share_percentage") @db.Decimal(5, 2)
+  name                 String   @db.VarChar(100)
+  imageUrl             String   @map("image_url") @db.VarChar(500)
+  rarityColor          String   @map("rarity_color") @db.VarChar(20)
+  designer             String   @db.VarChar(100)
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  // Relations
+  userCards UserCard[]
+
+  @@map("cards")
+}
+
+model Season {
+  id                    BigInt   @id @default(autoincrement())
+  name                  String   @db.VarChar(100)
+  slogan                String   @db.VarChar(100) // Like: big summer Event Season 1, Season 2, etc.
+  bidPoolAmount         BigInt   @map("bid_pool_amount") // Total bid CATI in season pool
+  additionalTotalPool   BigInt   @map("additional_total_pool") // Total sponsor CATI in season pool
+  startDate             DateTime @map("start_date")
+  endDate               DateTime @map("end_date")
+  status                String   @default("UPCOMING") @db.VarChar(20) // UPCOMING, ACTIVE, ENDED, DISTRIBUTED
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  // Relations
+  userCards     UserCard[]
+  seasonRewards SeasonReward[]
+
+  @@map("seasons")
+}
+
+model UserCard {
+  id         BigInt   @id @default(autoincrement())
+  userId     BigInt   @map("user_id")
+  cardId     Int      @map("card_id")
+  seasonId   BigInt   @map("season_id")
+  catiSpent  BigInt   @map("cati_spent")
+  catiReward BigInt   @map("cati_reward") // Amount of CATI reward this card
+  acquiredAt DateTime @default(now()) @map("acquired_at")
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id])
+  card   Card   @relation(fields: [cardId], references: [id])
+  season Season @relation(fields: [seasonId], references: [id])
+
+  @@map("user_cards")
+}
+
+model SeasonReward {
+  id               BigInt    @id @default(autoincrement())
+  seasonId         BigInt    @map("season_id")
+  userId           BigInt    @map("user_id")
+  totalPoolShare   Decimal   @map("total_pool_share") @db.Decimal(8, 5)
+  rewardAmount     BigInt    @map("reward_amount")
+  status           String    @default("PENDING") @db.VarChar(20) // PENDING, DISTRIBUTED
+  distributedAt    DateTime? @map("distributed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  season Season @relation(fields: [seasonId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("season_rewards")
+}
+
+model CatiTransaction {
+  id          BigInt   @id @default(autoincrement())
+  userId      BigInt   @map("user_id")
+  type        String   @db.VarChar(20) // SPEND_DRAW, SEASON_REWARD, WITHDRAW, DEPOSIT
+  amount      BigInt   // Positive for credits, negative for debits
+  description String   @db.VarChar(255)
+  referenceId BigInt?  @map("reference_id") // References user_card_id, season_id, etc.
+  createdAt   DateTime @default(now()) @map("created_at")
+  source      String   @default("OFFCHAIN") @db.VarChar(10) // OFFCHAIN or ONCHAIN
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("cati_transactions")
+}
+
+model Withdrawal {
+  id          BigInt    @id @default(autoincrement())
+  userId      BigInt    @map("user_id")
+  amount      BigInt
+  status      String    @db.VarChar(20) // PENDING, COMPLETED, FAILED
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  completedAt DateTime? @map("completed_at")
+  txHash      String?   @map("tx_hash") @db.VarChar(255)
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("withdrawals")
+}
+
+model Deposit {
+  id          BigInt    @id @default(autoincrement())
+  userId      BigInt    @map("user_id")
+  amount      BigInt
+  status      String    @db.VarChar(20) // PENDING, COMPLETED, FAILED
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  completedAt DateTime? @map("completed_at")
+  txHash      String?   @map("tx_hash") @db.VarChar(255)
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("deposits")
+}
