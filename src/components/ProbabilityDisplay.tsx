@@ -1,5 +1,5 @@
 import React from 'react';
-import { CardService } from '@/services/cardService';
+import { CardService } from '@/app/services/cardService';
 import { cn } from '@/lib/utils';
 
 interface ProbabilityDisplayProps {

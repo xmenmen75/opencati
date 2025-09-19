@@ -1,203 +1,158 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import type { WalletState, User } from '@/types/user';
-import { createUser, fetchUserData, saveUserData } from '../services/userService';
+import { useAuth } from './useAuth';
+import type { WalletState } from '@/types/user';
 
-// BNB Smart Chain Testnet configuration
-const BSC_TESTNET = {
-  chainId: '0x61', // 97 in decimal
-  chainName: 'BNB Smart Chain Testnet',
-  nativeCurrency: {
-    name: 'BNB',
-    symbol: 'tBNB',
-    decimals: 18,
-  },
-  rpcUrls: ['https://data-seed-prebsc-1-s1.binance.org:8545/'],
-  blockExplorerUrls: ['https://testnet.bscscan.com/'],
-};
+// MetaMask Ethereum provider types
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string; params?: any[] }) => Promise<any>;
+      on: (event: string, handler: (...args: any[]) => void) => void;
+      removeListener: (event: string, handler: (...args: any[]) => void) => void;
+      isMetaMask?: boolean;
+    };
+  }
+}
+
+const BSC_TESTNET_CHAIN_ID = '0x61'; // 97 in decimal
 
 export function useWallet() {
   const [walletState, setWalletState] = useState<WalletState>({
     isConnected: false,
-    account: null,
-    balance: null,
-    chainId: null,
-    isLoading: false,
+    isConnecting: false,
+    address: null,
     error: null,
   });
+  const [isConnecting, setIsConnecting] = useState(false);
+  const { isAuthenticated, user, signInWithEthereum, logout, isLoading: authLoading, error: authError, clearError: clearAuthError } = useAuth();
 
-  const [user, setUser] = useState<User | null>(null);
-
-  // Check if wallet is already connected
+  // Check for existing connection on mount
   useEffect(() => {
-    checkConnection();
+    checkWalletConnection();
   }, []);
 
-  const checkConnection = async () => {
-    try {
-      if (typeof window.ethereum !== 'undefined') {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const accounts = await provider.listAccounts();
-        
-        if (accounts.length > 0) {
-          const signer = await provider.getSigner();
-          const address = await signer.getAddress();
-          const balance = await provider.getBalance(address);
-          const network = await provider.getNetwork();
-          
-          setWalletState({
-            isConnected: true,
-            account: address,
-            balance: ethers.formatEther(balance),
-            chainId: `0x${network.chainId.toString(16)}`,
-            isLoading: false,
-            error: null,
-          });
+  // Check if user is connected to the correct network
+  const isCorrectNetwork = true; // For now, assume always correct
 
-          // Fetch or create user data
-          let userData = await fetchUserData(address);
-          if (!userData) {
-            userData = createUser(address);
-          }
-          setUser(userData);
-          await saveUserData(userData);
-        }
+  const checkWalletConnection = async () => {
+    try {
+      if (!window.ethereum) return;
+
+      const accounts = await window.ethereum.request({
+        method: 'eth_accounts',
+      }) as string[];
+
+      if (accounts && accounts.length > 0) {
+        setWalletState({
+          isConnected: true,
+          isConnecting: false,
+          address: accounts[0],
+          error: null,
+        });
       }
     } catch (error) {
-      console.error('Error checking connection:', error);
+      console.error('Failed to check wallet connection:', error);
     }
   };
 
   const connectWallet = async () => {
-    setWalletState(prev => ({ ...prev, isLoading: true, error: null }));
-
     try {
+      setIsConnecting(true);
+      setWalletState(prev => ({ ...prev, isConnecting: true, error: null }));
+
       // Check if MetaMask is installed
-      if (typeof window.ethereum === 'undefined') {
-        throw new Error('MetaMask is not installed. Please install MetaMask to use this feature.');
+      if (!window.ethereum) {
+        throw new Error('MetaMask is not installed. Please install MetaMask to continue.');
       }
 
       // Request account access
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send('eth_requestAccounts', []);
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts',
+      }) as string[];
 
-      // Check if we're on BSC Testnet
-      const network = await provider.getNetwork();
-      const currentChainId = `0x${network.chainId.toString(16)}`;
-
-      if (currentChainId !== BSC_TESTNET.chainId) {
-        // Try to switch to BSC Testnet
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: BSC_TESTNET.chainId }],
-          });
-        } catch (switchError: any) {
-          // This error code indicates that the chain has not been added to MetaMask
-          if (switchError.code === 4902) {
-            await window.ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [BSC_TESTNET],
-            });
-          } else {
-            throw switchError;
-          }
-        }
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts found. Please make sure MetaMask is unlocked.');
       }
 
-      // Get updated provider after network switch
-      const updatedProvider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await updatedProvider.getSigner();
-      const address = await signer.getAddress();
-      const balance = await updatedProvider.getBalance(address);
-      const updatedNetwork = await updatedProvider.getNetwork();
+      const account = accounts[0];
+      const provider = new ethers.BrowserProvider(window.ethereum);
 
+      // Update wallet state
       setWalletState({
         isConnected: true,
-        account: address,
-        balance: ethers.formatEther(balance),
-        chainId: `0x${updatedNetwork.chainId.toString(16)}`,
-        isLoading: false,
+        isConnecting: false,
+        address: account,
         error: null,
       });
 
-      // Create and save user data
-      let userData = await fetchUserData(address);
-      if (!userData) {
-        userData = createUser(address);
+      // Authenticate with SIWE
+      const authResult = await signInWithEthereum(account, provider);
+      
+      if (!authResult.success) {
+        throw new Error(authResult.error || 'Authentication failed');
       }
-      setUser(userData);
-      await saveUserData(userData);
 
-      // Listen for account changes
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', handleChainChanged);
-
-    } catch (error: any) {
-      setWalletState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: error.message || 'Failed to connect wallet',
-      }));
-    }
-  };
-
-  const handleAccountsChanged = (accounts: string[]) => {
-    if (accounts.length === 0) {
-      // User disconnected wallet
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to connect wallet';
       setWalletState({
         isConnected: false,
-        account: null,
-        balance: null,
-        chainId: null,
-        isLoading: false,
-        error: null,
+        isConnecting: false,
+        address: null,
+        error: errorMessage,
       });
-      setUser(null);
-    } else {
-      // Account changed
-      checkConnection();
+    } finally {
+      setIsConnecting(false);
     }
-  };
-
-  const handleChainChanged = () => {
-    // Reload the page when chain changes
-    window.location.reload();
   };
 
   const disconnectWallet = () => {
     setWalletState({
       isConnected: false,
-      account: null,
-      balance: null,
-      chainId: null,
-      isLoading: false,
+      isConnecting: false,
+      address: null,
       error: null,
     });
-    
-    setUser(null);
-    
-    // Remove event listeners
-    if (window.ethereum) {
-      window.ethereum.removeAllListeners('accountsChanged');
-      window.ethereum.removeAllListeners('chainChanged');
-    }
+    logout();
   };
 
-  const isCorrectNetwork = walletState.chainId === BSC_TESTNET.chainId;
+  // Handle account changes
+  useEffect(() => {
+    if (!window.ethereum) return;
+
+    const handleAccountsChanged = async (accounts: string[]) => {
+      if (accounts.length === 0) {
+        disconnectWallet();
+      } else if (accounts[0] !== walletState.address) {
+        await disconnectWallet();
+      }
+    };
+
+    const handleChainChanged = () => {
+      window.location.reload();
+    };
+
+    window.ethereum.on('accountsChanged', handleAccountsChanged);
+    window.ethereum.on('chainChanged', handleChainChanged);
+
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
+      }
+    };
+  }, [walletState.address]);
 
   return {
     walletState,
     user,
+    isAuthenticated,
+    authLoading,
+    authError,
+    isConnecting,
     connectWallet,
     disconnectWallet,
     isCorrectNetwork,
+    clearAuthError,
   };
-}
-
-// Type declarations for window.ethereum
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
 }

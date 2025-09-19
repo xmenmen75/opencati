@@ -5,7 +5,7 @@ const generateMockCardIds = (count: number): string[] => {
   return Array.from({ length: count }, (_, i) => `mock_card_${i + 1}_${Date.now()}`);
 };
 
-// Create user data with wallet address and mock data for testing
+// Create user data with wallet address and mock data for testing (for backward compatibility)
 export const createUser = (walletAddress: string): User => {
   // Generate mock data for demonstration
   const mockCardCount = Math.floor(Math.random() * 15) + 5; // 5-20 cards
@@ -13,35 +13,44 @@ export const createUser = (walletAddress: string): User => {
   
   return {
     walletAddress,
-    catiTokens: mockCatiTokens,
+    userNickname: `User${walletAddress.slice(-4)}`,
+    catiBalance: mockCatiTokens.toString(),
     ownedCards: generateMockCardIds(mockCardCount)
   };
 };
 
-// API call to fetch user data from backend
-export const fetchUserData = async (walletAddress: string): Promise<User | null> => {
+// API call to fetch user data from backend (now authenticated)
+export const fetchUserData = async (token: string): Promise<User | null> => {
   try {
-    // TODO: Replace with actual API call to your backend
-    // const response = await fetch(`/api/users/${walletAddress}`);
-    // if (response.ok) {
-    //   return await response.json();
-    // }
+    const response = await fetch('/api/auth/me', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
     
-    // For now, return mock user data with cards and tokens for testing
-    return createUser(walletAddress);
+    if (response.ok) {
+      const data = await response.json();
+      return data.user;
+    }
+    
+    return null;
   } catch (error) {
     console.error('Error fetching user data:', error);
     return null;
   }
 };
 
-// API call to save user data
+// API call to save user data (placeholder for future implementation)
 export const saveUserData = async (user: User): Promise<void> => {
   try {
-    // TODO: Replace with actual API call to your backend
-    // await fetch('/api/users', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
+    // TODO: Implement user data update API endpoint
+    // await fetch('/api/users/update', {
+    //   method: 'PUT',
+    //   headers: { 
+    //     'Content-Type': 'application/json',
+    //     'Authorization': `Bearer ${token}`
+    //   },
     //   body: JSON.stringify(user)
     // });
     

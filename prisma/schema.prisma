@@ -24,6 +24,7 @@ model User {
   catiTransactions  CatiTransaction[]
   withdrawals       Withdrawal[]
   deposits          Deposit[]
+  authSessions      AuthSession[]
 
   @@map("users")
 }
@@ -140,4 +141,29 @@ model Deposit {
   user User @relation(fields: [userId], references: [id])
 
   @@map("deposits")
+}
+
+model AuthNonce {
+  id        String   @id @default(cuid())
+  nonce     String   @unique
+  address   String   @db.VarChar(255)
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  @@map("auth_nonces")
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    BigInt   @map("user_id")
+  jti       String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("auth_sessions")
 }
