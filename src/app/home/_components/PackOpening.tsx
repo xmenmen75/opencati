@@ -1,8 +1,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { CardDisplay } from '@/components/CardDisplay';
-import { PackOpeningAnimation } from '@/components/PackOpeningAnimation';
-import { ProbabilityDisplay } from '@/components/ProbabilityDisplay';
+import { CardDisplay } from '@/app/home/_components/CardDisplay';
+import { PackOpeningAnimation } from '@/app/home/_components/PackOpeningAnimation';
+import { ProbabilityDisplay } from '@/app/home/_components/ProbabilityDisplay';
 import { cn } from '@/lib/utils';
 import { usePackOpening } from '@/app/hooks/usePackOpening';
 

@@ -1,0 +1,168 @@
+import { useState, useCallback } from 'react';
+import { SiweMessage } from 'siwe';
+import { ethers } from 'ethers';
+import { useAuthMe, useAuthVerify, useAuthLogout } from '@/hooks/queries';
+import { queryClient } from '@/lib/react-query';
+import { queryKeys } from '@/hooks/queries';
+
+const STORAGE_KEY = 'opencati_auth_token';
+
+export function useAuth() {
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  
+  // Use React Query hooks
+  const { data: authData, isLoading: isAuthLoading, error: authError } = useAuthMe();
+  const authVerifyMutation = useAuthVerify();
+  const authLogoutMutation = useAuthLogout();
+
+  const isAuthenticated = !!authData?.user;
+  const user = authData?.user || null;
+  const isLoading = isAuthLoading || localLoading || authVerifyMutation.isPending;
+  const error = localError || 
+    (authError && typeof authError === 'object' && 'message' in authError ? authError.message : null) ||
+    (authVerifyMutation.error && typeof authVerifyMutation.error === 'object' && 'message' in authVerifyMutation.error ? authVerifyMutation.error.message : null) ||
+    null;
+
+  const signInWithEthereum = async (walletAddress: string, provider: ethers.BrowserProvider) => {
+    try {
+      setLocalLoading(true);
+      setLocalError(null);
+
+      // Clear any existing auth state first
+      localStorage.removeItem(STORAGE_KEY);
+      queryClient.clear();
+
+      // Wait a moment to ensure state is cleared
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Step 1: Format the wallet address with EIP-55 checksum
+      const checksummedAddress = ethers.getAddress(walletAddress.toLowerCase());
+      console.log('Using checksummed address:', checksummedAddress);
+
+      // Step 2: Get nonce from server using React Query
+      const nonceData = await queryClient.fetchQuery({
+        queryKey: queryKeys.auth.nonce(checksummedAddress),
+        queryFn: async () => {
+          const response = await fetch(`/api/auth/nonce?address=${checksummedAddress}`, {
+            headers: { 'Cache-Control': 'no-cache' },
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to get nonce');
+          }
+          return response.json();
+        },
+        staleTime: 0,
+        gcTime: 0,
+      });
+
+      const nonce = nonceData.nonce;
+      console.log('Received nonce:', nonce);
+
+      // Step 3: Get network info
+      const network = await provider.getNetwork();
+      const chainId = Number(network.chainId);
+      
+      if (!chainId || chainId <= 0) {
+        throw new Error('Invalid network chain ID');
+      }
+
+      console.log('Using chainId:', chainId);
+
+      // Step 4: Create SIWE message
+      const domain = window.location.hostname;
+      const origin = window.location.origin;
+      
+      const siweMessageParams = {
+        domain: domain,
+        address: checksummedAddress,
+        statement: 'Sign in to OpenCATI with your Ethereum account.',
+        uri: origin,
+        version: '1' as const,
+        chainId: chainId,
+        nonce: nonce,
+        issuedAt: new Date().toISOString(),
+        expirationTime: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      };
+
+      const message = new SiweMessage(siweMessageParams);
+      const messageString = message.prepareMessage();
+      
+      console.log('Generated SIWE message:', messageString);
+
+      // Step 5: Request signature from wallet
+      let signature: string;
+      try {
+        const signer = await provider.getSigner();
+        signature = await signer.signMessage(messageString);
+        console.log('Signature received');
+      } catch (signingError) {
+        if (signingError instanceof Error && signingError.message.includes('User denied')) {
+          throw new Error('User cancelled the signature request');
+        }
+        throw new Error('Failed to sign authentication message');
+      }
+
+      // Step 6: Verify signature using React Query mutation
+      const result = await authVerifyMutation.mutateAsync({
+        message: messageString,
+        signature,
+      });
+
+      // Step 7: Store token
+      localStorage.setItem(STORAGE_KEY, result.token);
+
+      console.log('Authentication successful');
+      setLocalLoading(false);
+      return { success: true, user: result.user };
+    } catch (error: unknown) {
+      console.error('SIWE authentication failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      setLocalError(errorMessage);
+      setLocalLoading(false);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  const logout = useCallback(async () => {
+    try {
+      // Call logout API first (while token is still available)
+      await authLogoutMutation.mutateAsync();
+      
+      // Only clear local state after successful API call
+      localStorage.removeItem(STORAGE_KEY);
+      
+      // Clear all cached data
+      queryClient.clear();
+    } catch (error) {
+      console.error('Logout API failed:', error);
+      // Still ensure local state is cleared even if API fails
+      localStorage.removeItem(STORAGE_KEY);
+      queryClient.clear();
+    }
+  }, [authLogoutMutation]);
+
+  const clearError = useCallback(() => {
+    setLocalError(null);
+    authVerifyMutation.reset();
+  }, [authVerifyMutation]);
+
+  const checkAuthStatus = useCallback(async () => {
+    // This is now handled automatically by the useAuthMe query
+    // Just trigger a refetch if needed
+    queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
+  }, []);
+
+  return {
+    isAuthenticated,
+    user,
+    token: authData ? localStorage.getItem(STORAGE_KEY) : null,
+    isLoading,
+    error,
+    signInWithEthereum,
+    logout,
+    clearError,
+    checkAuthStatus,
+  };
+}

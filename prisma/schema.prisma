@@ -15,6 +15,8 @@ model User {
   walletAddress      String   @unique @map("wallet_address") @db.VarChar(255)
   userNickname       String   @unique @map("user_nickname") @db.VarChar(100)
   profilePictureUrl  String?  @map("profile_picture_url") @db.VarChar(500)
+  language           String   @default("en") @db.VarChar(10)
+  timezone           String   @default("UTC") @db.VarChar(50)
   catiBalance        BigInt   @default(0) @map("cati_balance")
   createdAt          DateTime @default(now()) @map("created_at")
 

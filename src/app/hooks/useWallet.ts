@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { useAuth } from './useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import type { WalletState } from '@/types/user';
 
 // MetaMask Ethereum provider types
 declare global {
   interface Window {
     ethereum?: {
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-      on: (event: string, handler: (...args: any[]) => void) => void;
-      removeListener: (event: string, handler: (...args: any[]) => void) => void;
+      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+      on: (event: string, handler: (...args: unknown[]) => void) => void;
+      removeListener: (event: string, handler: (...args: unknown[]) => void) => void;
       isMetaMask?: boolean;
     };
   }
@@ -120,10 +120,11 @@ export function useWallet() {
   useEffect(() => {
     if (!window.ethereum) return;
 
-    const handleAccountsChanged = async (accounts: string[]) => {
-      if (accounts.length === 0) {
+    const handleAccountsChanged = async (accounts: unknown) => {
+      const accountsArray = accounts as string[];
+      if (accountsArray.length === 0) {
         disconnectWallet();
-      } else if (accounts[0] !== walletState.address) {
+      } else if (accountsArray[0] !== walletState.address) {
         await disconnectWallet();
       }
     };
@@ -141,7 +142,7 @@ export function useWallet() {
         window.ethereum.removeListener('chainChanged', handleChainChanged);
       }
     };
-  }, [walletState.address]);
+  }, [walletState.address, disconnectWallet]);
 
   return {
     walletState,

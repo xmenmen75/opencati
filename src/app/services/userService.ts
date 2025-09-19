@@ -1,3 +1,4 @@
+import { authApi, userApi } from '@/services/api';
 import type { User } from '@/types/user';
 
 // Generate mock card IDs for testing
@@ -19,43 +20,25 @@ export const createUser = (walletAddress: string): User => {
   };
 };
 
-// API call to fetch user data from backend (now authenticated)
-export const fetchUserData = async (token: string): Promise<User | null> => {
+// API call to fetch user data from backend using the new API client
+export const fetchUserData = async (): Promise<User | null> => {
   try {
-    const response = await fetch('/api/auth/me', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      return data.user;
-    }
-    
-    return null;
+    const response = await authApi.getMe();
+    return response.user;
   } catch (error) {
     console.error('Error fetching user data:', error);
     return null;
   }
 };
 
-// API call to save user data (placeholder for future implementation)
-export const saveUserData = async (user: User): Promise<void> => {
+// API call to save user data using the new API client
+export const saveUserData = async (userData: Partial<User>): Promise<User | null> => {
   try {
-    // TODO: Implement user data update API endpoint
-    // await fetch('/api/users/update', {
-    //   method: 'PUT',
-    //   headers: { 
-    //     'Content-Type': 'application/json',
-    //     'Authorization': `Bearer ${token}`
-    //   },
-    //   body: JSON.stringify(user)
-    // });
-    
-    console.log('User data would be saved to backend:', user);
+    const updatedUser = await userApi.updateProfile(userData);
+    console.log('User data saved successfully:', updatedUser);
+    return updatedUser;
   } catch (error) {
     console.error('Error saving user data:', error);
+    return null;
   }
 };

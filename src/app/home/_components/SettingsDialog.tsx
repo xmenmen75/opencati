@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
@@ -17,18 +17,18 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { User } from 'lucide-react';
+import { User, AlertCircle, CheckCircle } from 'lucide-react';
+import { useUpdateUserProfile } from '@/hooks/queries';
 import type { User as UserType } from '@/types/user';
 
 interface SettingsDialogProps {
   user: UserType | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (settings: UserSettings) => void;
 }
 
 interface UserSettings {
-  nickname: string;
+  userNickname: string;
   profilePictureUrl: string;
   language: string;
   timezone: string;
@@ -52,26 +52,49 @@ const TIMEZONES = [
   { value: 'KST', label: 'KST (Korea Standard Time)' },
 ];
 
-export function SettingsDialog({ user, isOpen, onOpenChange, onSave }: SettingsDialogProps) {
+export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogProps) {
+  const updateUserProfileMutation = useUpdateUserProfile();
+  
   const [settings, setSettings] = useState<UserSettings>({
-    nickname: user?.nickname || user?.name || '',
+    userNickname: user?.userNickname || '',
     profilePictureUrl: user?.profilePictureUrl || '',
     language: user?.language || 'en',
     timezone: user?.timezone || 'UTC',
   });
 
-  const handleSave = () => {
-    onSave(settings);
-    onOpenChange(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Update settings when user data changes
+  useEffect(() => {
+    if (user) {
+      setSettings({
+        userNickname: user.userNickname || '',
+        profilePictureUrl: user.profilePictureUrl || '',
+        language: user.language || 'en',
+        timezone: user.timezone || 'UTC',
+      });
+      setImageError(false);
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    try {
+      await updateUserProfileMutation.mutateAsync(settings);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      // Error is handled by React Query and shown in UI
+    }
   };
 
   const handleReset = () => {
     setSettings({
-      nickname: user?.nickname || user?.name || '',
+      userNickname: user?.userNickname || '',
       profilePictureUrl: user?.profilePictureUrl || '',
       language: user?.language || 'en',
       timezone: user?.timezone || 'UTC',
     });
+    setImageError(false);
   };
 
   return (
@@ -87,19 +110,15 @@ export function SettingsDialog({ user, isOpen, onOpenChange, onSave }: SettingsD
             {/* Profile Picture */}
             <div className="flex flex-row items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center overflow-hidden relative">
-                {user?.profilePictureUrl ? (
-                  <>
-                    <img
-                      src={user.profilePictureUrl}
-                      alt="Profile"
-                      className="w-full h-full object-cover absolute inset-0"
-                      onError={(e) => {
-                        // Hide the image and show fallback
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                    <User className="w-8 h-8 text-gray-500" />
-                  </>
+                {user?.profilePictureUrl && !imageError ? (
+                  <Image
+                    src={user.profilePictureUrl}
+                    alt="Profile"
+                    width={64}
+                    height={64}
+                    className="w-full h-full object-cover"
+                    onError={() => setImageError(true)}
+                  />
                 ) : (
                   <User className="w-8 h-8 text-gray-500" />
                 )}
@@ -110,8 +129,8 @@ export function SettingsDialog({ user, isOpen, onOpenChange, onSave }: SettingsD
                 <div className=" text-sm text-gray-400">
                   Current Profile
                 </div>
-                <div className=" font-medium text-gray-900">
-                  {user?.nickname || user?.name || 'Anonymous User'}
+                <div className="font-medium text-gray-900">
+                  {user?.userNickname || 'Anonymous User'}
                 </div>
               </div>
             </div>
@@ -125,8 +144,8 @@ export function SettingsDialog({ user, isOpen, onOpenChange, onSave }: SettingsD
               <Input
                 id="nickname"
                 placeholder="Enter your nickname"
-                value={settings.nickname}
-                onChange={(e) => setSettings(prev => ({ ...prev, nickname: e.target.value }))}
+                value={settings.userNickname}
+                onChange={(e) => setSettings(prev => ({ ...prev, userNickname: e.target.value }))}
               />
             </div>
 
@@ -184,10 +203,31 @@ export function SettingsDialog({ user, isOpen, onOpenChange, onSave }: SettingsD
         </div>
 
         <DialogFooter className="border-t pt-4">
+          {/* Error Display */}
+          {updateUserProfileMutation.error && (
+            <div className="flex items-center gap-2 text-red-600 text-sm mb-3 w-full">
+              <AlertCircle className="w-4 h-4" />
+              <span>
+                {updateUserProfileMutation.error instanceof Error 
+                  ? updateUserProfileMutation.error.message 
+                  : 'Failed to update profile. Please try again.'}
+              </span>
+            </div>
+          )}
+
+          {/* Success Display */}
+          {updateUserProfileMutation.isSuccess && (
+            <div className="flex items-center gap-2 text-green-600 text-sm mb-3 w-full">
+              <CheckCircle className="w-4 h-4" />
+              <span>Profile updated successfully!</span>
+            </div>
+          )}
+
           <div className="flex justify-between items-center w-full">
             <Button
               variant="outline"
               onClick={handleReset}
+              disabled={updateUserProfileMutation.isPending}
             >
               Reset to Current
             </Button>
@@ -195,11 +235,22 @@ export function SettingsDialog({ user, isOpen, onOpenChange, onSave }: SettingsD
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={updateUserProfileMutation.isPending}
               >
                 Cancel
               </Button>
-              <Button onClick={handleSave}>
-                Save Changes
+              <Button 
+                onClick={handleSave}
+                disabled={updateUserProfileMutation.isPending}
+              >
+                {updateUserProfileMutation.isPending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
               </Button>
             </div>
           </div>

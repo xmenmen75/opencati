@@ -23,9 +23,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // The JWT contains user ID in 'sub'
+    const userId = decoded.sub;
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Invalid token payload' },
+        { status: 401 }
+      );
+    }
+
     // Get user data
     const user = await prisma.user.findUnique({
-      where: { walletAddress: decoded.sub },
+      where: { id: BigInt(userId) },
     });
 
     if (!user) {
@@ -41,6 +51,8 @@ export async function GET(request: NextRequest) {
         walletAddress: user.walletAddress,
         userNickname: user.userNickname,
         profilePictureUrl: user.profilePictureUrl,
+        language: user.language,
+        timezone: user.timezone,
         catiBalance: user.catiBalance.toString(),
         createdAt: user.createdAt,
       },

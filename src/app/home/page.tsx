@@ -1,34 +1,28 @@
 'use client';
 
 import { useState } from 'react';
-import { PackOpening } from '@/components/PackOpening';
-import { TopBar } from '@/components/TopBar';
-import { OwnedCardsDialog } from '@/components/OwnedCardsDialog';
-import { SettingsDialog } from '@/components/SettingsDialog';
+import { PackOpening } from '@/app/home/_components/PackOpening';
+import { TopBar } from '@/app/home/_components/TopBar';
+import { OwnedCardsDialog } from '@/app/home/_components/OwnedCardsDialog';
+import { SettingsDialog } from '@/app/home/_components/SettingsDialog';
+import { LoadingPage } from '@/components/ui/Loading';
 import { useWallet } from '../hooks/useWallet';
+// import { useOwnedCards } from '@/hooks/queries';
 import { CardService } from '../services/cardService';
 
-interface UserSettings {
-  nickname: string;
-  profilePictureUrl: string;
-  language: string;
-  timezone: string;
-}
 function Home() {
   const { walletState, user, isAuthenticated, connectWallet, disconnectWallet, isCorrectNetwork, authError, clearAuthError, authLoading } = useWallet();
   const [isCardsDialogOpen, setIsCardsDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   
+  // Use React Query to fetch owned cards
+  // const { data: ownedCardsData, isLoading: cardsLoading, error: cardsError } = useOwnedCards();
+  
   const handleSettings = () => {
     setIsSettingsDialogOpen(true);
   };
 
-  const handleSaveSettings = (settings: UserSettings) => {
-    // TODO: Implement settings save functionality
-    console.log('Saving settings:', settings);
-    // Here you would typically make an API call to save the settings
-    // For now, just log the settings
-  };
+
 
   const handleOpenCardsDialog = () => {
     setIsCardsDialogOpen(true);
@@ -40,8 +34,14 @@ function Home() {
   // Check if wallet connection/auth is in progress
   const isLoading = walletState.isConnecting || authLoading;
 
-  // Get user's owned cards for display (show mock data when not connected)
+  // Get user's owned cards for display
+  // For now, use mock data. When API is ready, use ownedCardsData
   const ownedCards = user ? CardService.generateMockOwnedCards(user.ownedCards || []) : CardService.generateMockOwnedCards([]);
+  
+  // Show loading page for initial authentication check
+  if (authLoading && !walletState.isConnected) {
+    return <LoadingPage />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#362A85] to-[#7F174C]">
@@ -58,7 +58,7 @@ function Home() {
       />
 
       {/* Main Content */}
-      <div className="flex-1"> {/* Removed bottom padding since we no longer have a bottom panel */}
+      <div className="flex-1">
         {canPlay ? (
           <PackOpening />
         ) : (
@@ -67,12 +67,9 @@ function Home() {
               <h2 className="text-2xl font-bold text-white">
                 Connect Your Wallet to Play
               </h2>
-              {/* <p className="text-white/80">
-                You need to connect your wallet with t
-              </p> */}
+              {/* Error States */}
               {(walletState.error || authError) && (
                 <div className="bg-red-500/20 backdrop-blur-sm border border-red-400/50 text-red-100 px-4 py-3 rounded-lg max-w-md mx-auto">
-                  {walletState.error || authError}
                   {authError && (
                     <button 
                       onClick={clearAuthError}
@@ -83,16 +80,12 @@ function Home() {
                   )}
                 </div>
               )}
-              {/* {!isCorrectNetwork && walletState.isConnected && (
+              {/* cardsError && (
                 <div className="bg-yellow-500/20 backdrop-blur-sm border border-yellow-400/50 text-yellow-100 px-4 py-3 rounded-lg max-w-md mx-auto">
-                  Please switch to BNB Smart Chain Testnet to continue.
+                  Failed to load cards data. Please try again.
                 </div>
-              )}
-              {walletState.isConnected && !isAuthenticated && (
-                <div className="bg-blue-500/20 backdrop-blur-sm border border-blue-400/50 text-blue-100 px-4 py-3 rounded-lg max-w-md mx-auto">
-                  Please sign the authentication message to verify your wallet ownership.
-                </div>
-              )} */}
+              ) */}
+              {/* Loading State */}
               {isLoading && (
                 <div className="bg-purple-500/20 backdrop-blur-sm border border-purple-400/50 text-purple-100 px-4 py-3 rounded-lg max-w-md mx-auto">
                   <div className="flex items-center justify-center space-x-2">
@@ -121,7 +114,6 @@ function Home() {
         user={user}
         isOpen={isSettingsDialogOpen}
         onOpenChange={setIsSettingsDialogOpen}
-        onSave={handleSaveSettings}
       />
     </div>
   );
