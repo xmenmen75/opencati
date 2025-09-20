@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { User, AlertCircle, CheckCircle } from 'lucide-react';
+import { User, Plus, AlertCircle } from 'lucide-react';
 import { useUpdateUserProfile } from '@/hooks/queries';
 import type { User as UserType } from '@/types/user';
 
@@ -29,7 +30,7 @@ interface SettingsDialogProps {
 
 interface UserSettings {
   userNickname: string;
-  profilePictureUrl: string;
+  profilePictureFile: File | null;
   language: string;
   timezone: string;
 }
@@ -57,44 +58,131 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
   
   const [settings, setSettings] = useState<UserSettings>({
     userNickname: user?.userNickname || '',
-    profilePictureUrl: user?.profilePictureUrl || '',
+    profilePictureFile: null,
     language: user?.language || 'en',
     timezone: user?.timezone || 'UTC',
   });
 
   const [imageError, setImageError] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Update settings when user data changes
   useEffect(() => {
     if (user) {
       setSettings({
         userNickname: user.userNickname || '',
-        profilePictureUrl: user.profilePictureUrl || '',
+        profilePictureFile: null,
         language: user.language || 'en',
         timezone: user.timezone || 'UTC',
       });
       setImageError(false);
+      setPreviewUrl(null);
     }
   }, [user]);
 
+  // Cleanup preview URL when component unmounts or file changes
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  const handleFileUpload = (file: File) => {
+    // Check file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('File too large', {
+        description: 'Please select an image smaller than 2MB',
+      });
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Invalid file type', {
+        description: 'Please select an image file',
+      });
+      return;
+    }
+
+    setSettings(prev => ({ ...prev, profilePictureFile: file }));
+    
+    // Clean up previous preview URL
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    
+    // Create new preview URL
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleFileUpload(files[0]);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      handleFileUpload(files[0]);
+    }
+  };
+
   const handleSave = async () => {
+    const toastId = toast.loading('Updating profile...', {
+      description: 'Please wait while we save your changes',
+    });
+    
     try {
-      await updateUserProfileMutation.mutateAsync(settings);
+      const updateData = {
+        userNickname: settings.userNickname,
+        language: settings.language,
+        timezone: settings.timezone,
+        ...(settings.profilePictureFile && { profilePictureFile: settings.profilePictureFile }),
+      };
+      
+      await updateUserProfileMutation.mutateAsync(updateData);
+      
+      toast.success('Profile updated successfully!', {
+        id: toastId,
+        description: 'Your profile settings have been saved',
+      });
+      
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to update profile:', error);
-      // Error is handled by React Query and shown in UI
+      
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update profile. Please try again.';
+      
+      toast.error('Failed to update profile', {
+        id: toastId,
+        description: errorMessage,
+      });
     }
   };
 
   const handleReset = () => {
     setSettings({
       userNickname: user?.userNickname || '',
-      profilePictureUrl: user?.profilePictureUrl || '',
+      profilePictureFile: null,
       language: user?.language || 'en',
       timezone: user?.timezone || 'UTC',
     });
     setImageError(false);
+    
+    // Clean up preview URL
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
   };
 
   return (
@@ -149,15 +237,56 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
               />
             </div>
 
-            {/* Profile Image URL */}
+            {/* Profile Image Upload */}
             <div className="space-y-2">
-              <Label htmlFor="profileUrl">Profile Image URL</Label>
-              <Input
-                id="profileUrl"
-                placeholder="https://example.com/image.jpg"
-                value={settings.profilePictureUrl}
-                onChange={(e) => setSettings(prev => ({ ...prev, profilePictureUrl: e.target.value }))}
-              />
+              <Label htmlFor="profileImage">Profile Image (Avatar)</Label>
+              <div
+                className={`relative border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer ${
+                  dragOver 
+                    ? 'border-blue-400 bg-blue-50' 
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+                onDrop={handleDrop}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onClick={() => document.getElementById('profileImageInput')?.click()}
+              >
+                <input
+                  id="profileImageInput"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileInput}
+                />
+                
+                <div className="flex flex-col items-center justify-center text-center">
+                  {previewUrl ? (
+                    <div className="flex flex-col items-center">
+                      <Image
+                        src={previewUrl}
+                        alt="Preview"
+                        width={80}
+                        height={80}
+                        className="w-20 h-20 object-cover rounded-full mb-2"
+                      />
+                      <p className="text-sm text-gray-600">Click to change image</p>
+                    </div>
+                  ) : (
+                    <>
+                      <Plus className="w-8 h-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-600">
+                        Drag and drop image (max size 2 MB)
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        or click to browse
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Language */}
@@ -203,35 +332,8 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
         </div>
 
         <DialogFooter className="border-t pt-4">
-          {/* Error Display */}
-          {updateUserProfileMutation.error && (
-            <div className="flex items-center gap-2 text-red-600 text-sm mb-3 w-full">
-              <AlertCircle className="w-4 h-4" />
-              <span>
-                {updateUserProfileMutation.error instanceof Error 
-                  ? updateUserProfileMutation.error.message 
-                  : 'Failed to update profile. Please try again.'}
-              </span>
-            </div>
-          )}
-
-          {/* Success Display */}
-          {updateUserProfileMutation.isSuccess && (
-            <div className="flex items-center gap-2 text-green-600 text-sm mb-3 w-full">
-              <CheckCircle className="w-4 h-4" />
-              <span>Profile updated successfully!</span>
-            </div>
-          )}
-
           <div className="flex justify-between items-center w-full">
-            <Button
-              variant="outline"
-              onClick={handleReset}
-              disabled={updateUserProfileMutation.isPending}
-            >
-              Reset to Current
-            </Button>
-            <div className="flex gap-2">
+            <div className=" ml-auto flex gap-2">
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}

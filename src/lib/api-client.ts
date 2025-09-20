@@ -29,8 +29,17 @@ class ApiClient {
   }
 
   private getAuthHeaders(): Record<string, string> {
+    // Check if we're in the browser before accessing localStorage
+    if (typeof window === 'undefined') return {};
+    
     const token = localStorage.getItem('opencati_auth_token');
     return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  private shouldMakeAuthenticatedRequest(endpoint: string): boolean {
+    // Allow certain endpoints to be called without authentication
+    const publicEndpoints = ['/api/auth/nonce'];
+    return !publicEndpoints.some(ep => endpoint.includes(ep));
   }
 
   private async handleResponse(response: Response) {
@@ -59,6 +68,12 @@ class ApiClient {
   }
 
   async get<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    // Check if this endpoint requires authentication and we don't have a token
+    if (this.shouldMakeAuthenticatedRequest(endpoint) && 
+        (typeof window === 'undefined' || !localStorage.getItem('opencati_auth_token'))) {
+      throw new ApiError(401, 'No authentication token available');
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
@@ -86,18 +101,31 @@ class ApiClient {
   }
 
   async post<T>(endpoint: string, data?: unknown, options: RequestInit = {}): Promise<T> {
+    // Check if this endpoint requires authentication and we don't have a token
+    // Allow auth verification and logout even without token
+    const authEndpoints = ['/api/auth/verify', '/api/auth/logout'];
+    if (this.shouldMakeAuthenticatedRequest(endpoint) && 
+        !authEndpoints.some(ep => endpoint.includes(ep)) && 
+        (typeof window === 'undefined' || !localStorage.getItem('opencati_auth_token'))) {
+      throw new ApiError(401, 'No authentication token available');
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
+      // Handle FormData differently
+      const isFormData = data instanceof FormData;
+      
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          // Don't set Content-Type for FormData - let browser set it with boundary
+          ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
           ...this.getAuthHeaders(),
           ...options.headers,
         },
-        body: data ? JSON.stringify(data) : undefined,
+        body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
         signal: controller.signal,
         ...options,
       });
@@ -118,14 +146,18 @@ class ApiClient {
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
+      // Handle FormData differently
+      const isFormData = data instanceof FormData;
+      
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          // Don't set Content-Type for FormData - let browser set it with boundary
+          ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
           ...this.getAuthHeaders(),
           ...options.headers,
         },
-        body: data ? JSON.stringify(data) : undefined,
+        body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
         signal: controller.signal,
         ...options,
       });

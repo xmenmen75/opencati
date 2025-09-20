@@ -51,9 +51,6 @@ export function OwnedCardsDialog({ cards, isOpen, onOpenChange }: OwnedCardsDial
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Your Cards Collection</span>
-            <div className="text-sm font-normal text-gray-600">
-              {cards.length} {cards.length === 1 ? 'card' : 'cards'} total
-            </div>
           </DialogTitle>
         </DialogHeader>
 

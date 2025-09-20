@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { SiweMessage } from 'siwe';
 import { ethers } from 'ethers';
+import { toast } from 'sonner';
 import { useAuthMe, useAuthVerify, useAuthLogout } from '@/hooks/queries';
 import { queryClient } from '@/lib/react-query';
 import { queryKeys } from '@/hooks/queries';
@@ -114,12 +115,14 @@ export function useAuth() {
       localStorage.setItem(STORAGE_KEY, result.token);
 
       console.log('Authentication successful');
+      toast.success('Successfully signed in with Ethereum!');
       setLocalLoading(false);
       return { success: true, user: result.user };
     } catch (error: unknown) {
       console.error('SIWE authentication failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
       setLocalError(errorMessage);
+      toast.error(`Authentication failed: ${errorMessage}`);
       setLocalLoading(false);
       return { success: false, error: errorMessage };
     }
@@ -127,21 +130,27 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     try {
+      // First, cancel any ongoing queries to prevent new requests
+      await queryClient.cancelQueries();
+      
       // Call logout API first (while token is still available)
       await authLogoutMutation.mutateAsync();
       
-      // Only clear local state after successful API call
+      // Clear local state
       localStorage.removeItem(STORAGE_KEY);
       
-      // Clear all cached data
+      // Clear all cached data and prevent any refetching
       queryClient.clear();
+      
+      toast.success('Successfully signed out');
     } catch (error) {
       console.error('Logout API failed:', error);
       // Still ensure local state is cleared even if API fails
       localStorage.removeItem(STORAGE_KEY);
       queryClient.clear();
+      toast.error('Logout failed, but local session was cleared');
     }
-  }, [authLogoutMutation]);
+  }, [authLogoutMutation, queryClient]);
 
   const clearError = useCallback(() => {
     setLocalError(null);
@@ -157,7 +166,7 @@ export function useAuth() {
   return {
     isAuthenticated,
     user,
-    token: authData ? localStorage.getItem(STORAGE_KEY) : null,
+    token: authData && typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null,
     isLoading,
     error,
     signInWithEthereum,

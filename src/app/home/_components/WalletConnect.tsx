@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ethers } from 'ethers'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,6 +35,10 @@ export function WalletConnect() {
     isLoading: false,
     error: null,
   })
+
+  // Store references to event handlers for cleanup
+  const accountsChangedHandler = useRef<(...args: unknown[]) => void>(null!);
+  const chainChangedHandler = useRef<(...args: unknown[]) => void>(null!);
 
   // Check if wallet is already connected
   useEffect(() => {
@@ -122,8 +126,8 @@ export function WalletConnect() {
       })
 
       // Listen for account changes
-      window.ethereum.on('accountsChanged', handleAccountsChanged)
-      window.ethereum.on('chainChanged', handleChainChanged)
+      window.ethereum.on('accountsChanged', accountsChangedHandler.current)
+      window.ethereum.on('chainChanged', chainChangedHandler.current)
 
     } catch (error: any) {
       setWalletState(prev => ({
@@ -134,7 +138,8 @@ export function WalletConnect() {
     }
   }
 
-  const handleAccountsChanged = (accounts: string[]) => {
+  const handleAccountsChanged = (...args: unknown[]) => {
+    const accounts = args[0] as string[];
     if (accounts.length === 0) {
       // User disconnected wallet
       setWalletState({
@@ -156,6 +161,10 @@ export function WalletConnect() {
     window.location.reload()
   }
 
+  // Initialize handlers
+  accountsChangedHandler.current = handleAccountsChanged;
+  chainChangedHandler.current = handleChainChanged;
+
   const disconnectWallet = () => {
     setWalletState({
       isConnected: false,
@@ -167,9 +176,9 @@ export function WalletConnect() {
     })
     
     // Remove event listeners
-    if (window.ethereum) {
-      window.ethereum.removeAllListeners('accountsChanged')
-      window.ethereum.removeAllListeners('chainChanged')
+    if (window.ethereum && accountsChangedHandler.current && chainChangedHandler.current) {
+      window.ethereum.removeListener('accountsChanged', accountsChangedHandler.current)
+      window.ethereum.removeListener('chainChanged', chainChangedHandler.current)
     }
   }
 
@@ -274,11 +283,4 @@ export function WalletConnect() {
       </Card>
     </div>
   )
-}
-
-// Type declarations for window.ethereum
-declare global {
-  interface Window {
-    ethereum?: any
-  }
 }

@@ -29,15 +29,22 @@ export const queryKeys = {
  */
 
 export const useAuthMe = () => {
+  // Check token existence in a way that React Query can track
+  // Make sure we're in the browser before accessing localStorage
+  const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('opencati_auth_token');
+  
   return useQuery({
     queryKey: queryKeys.auth.me,
     queryFn: authApi.getMe,
+    enabled: hasToken, // Only run if token exists
     retry: (failureCount, error: unknown) => {
       // Don't retry on 401 (unauthorized)
       if (error && typeof error === 'object' && 'status' in error && error.status === 401) return false;
       return failureCount < 2;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnMount: hasToken, // Only refetch on mount if we have a token
+    refetchOnWindowFocus: hasToken, // Only refetch on window focus if we have a token
   });
 };
 
@@ -72,6 +79,13 @@ export const useAuthLogout = () => {
 
   return useMutation({
     mutationFn: authApi.logout,
+    onMutate: async () => {
+      // Cancel any outgoing refetches to prevent them from overwriting our optimistic update
+      await queryClient.cancelQueries({ queryKey: queryKeys.auth.me });
+      
+      // Immediately update the auth state to logged out
+      queryClient.setQueryData(queryKeys.auth.me, null);
+    },
     onSuccess: () => {
       // Clear all cached data on logout
       queryClient.clear();

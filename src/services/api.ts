@@ -60,6 +60,13 @@ export const authApi = {
   },
 };
 
+export interface UpdateProfileRequest {
+  userNickname?: string;
+  language?: string;
+  timezone?: string;
+  profilePictureFile?: File;
+}
+
 /**
  * User API functions
  */
@@ -75,8 +82,26 @@ export const userApi = {
   /**
    * Update user profile
    */
-  updateProfile: async (data: Partial<User>): Promise<User> => {
-    return apiClient.put('/api/users/profile', data);
+  updateProfile: async (data: UpdateProfileRequest): Promise<User> => {
+    const formData = new FormData();
+    
+    // Add text fields
+    if (data.userNickname !== undefined) {
+      formData.append('userNickname', data.userNickname);
+    }
+    if (data.language !== undefined) {
+      formData.append('language', data.language);
+    }
+    if (data.timezone !== undefined) {
+      formData.append('timezone', data.timezone);
+    }
+    
+    // Add file if provided
+    if (data.profilePictureFile) {
+      formData.append('profilePictureFile', data.profilePictureFile);
+    }
+
+    return apiClient.put('/api/users/profile', formData);
   },
 };
 

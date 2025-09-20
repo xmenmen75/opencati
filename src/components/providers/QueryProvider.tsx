@@ -24,8 +24,8 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
               }
               return failureCount < 3;
             },
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: true,
+            refetchOnWindowFocus: false, // Disable automatic refetch on window focus
+            refetchOnReconnect: false, // Disable automatic refetch on reconnect to prevent logout issues
           },
           mutations: {
             retry: 1,

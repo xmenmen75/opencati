@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
 import { prisma } from '@/lib/prisma';
 import { verifyJWT } from '@/lib/auth';
 
@@ -35,37 +37,78 @@ export async function PUT(request: NextRequest) {
     
     console.log('Updating profile for user ID:', userId);
 
-    // Parse request body
-    const body = await request.json();
-    const { userNickname, profilePictureUrl, language, timezone } = body;
+    // Parse form data
+    const formData = await request.formData();
+    const userNickname = formData.get('userNickname') as string | null;
+    const language = formData.get('language') as string | null;
+    const timezone = formData.get('timezone') as string | null;
+    const profilePictureFile = formData.get('profilePictureFile') as File | null;
 
     // Validate input
-    if (userNickname !== undefined && (typeof userNickname !== 'string' || userNickname.length > 100)) {
+    if (userNickname !== null && (typeof userNickname !== 'string' || userNickname.length > 100)) {
       return NextResponse.json(
         { error: 'Invalid nickname' },
         { status: 400 }
       );
     }
 
-    if (profilePictureUrl !== undefined && (typeof profilePictureUrl !== 'string' || profilePictureUrl.length > 500)) {
-      return NextResponse.json(
-        { error: 'Invalid profile picture URL' },
-        { status: 400 }
-      );
-    }
-
-    if (language !== undefined && (typeof language !== 'string' || language.length > 10)) {
+    if (language !== null && (typeof language !== 'string' || language.length > 10)) {
       return NextResponse.json(
         { error: 'Invalid language' },
         { status: 400 }
       );
     }
 
-    if (timezone !== undefined && (typeof timezone !== 'string' || timezone.length > 50)) {
+    if (timezone !== null && (typeof timezone !== 'string' || timezone.length > 50)) {
       return NextResponse.json(
         { error: 'Invalid timezone' },
         { status: 400 }
       );
+    }
+
+    // Handle file upload
+    let profilePictureUrl: string | undefined;
+    
+    if (profilePictureFile && profilePictureFile.size > 0) {
+      // Validate file size (2MB max)
+      if (profilePictureFile.size > 2 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: 'File size exceeds 2MB limit' },
+          { status: 400 }
+        );
+      }
+
+      // Validate file type
+      if (!profilePictureFile.type.startsWith('image/')) {
+        return NextResponse.json(
+          { error: 'Invalid file type. Only images are allowed.' },
+          { status: 400 }
+        );
+      }
+
+      // Create uploads directory if it doesn't exist
+      const uploadsDir = join(process.cwd(), 'public', 'uploads', 'avatars');
+      try {
+        await mkdir(uploadsDir, { recursive: true });
+      } catch (error) {
+        console.log('Upload directory already exists or created successfully');
+      }
+
+      // Generate unique filename
+      const fileExtension = profilePictureFile.name.split('.').pop();
+      const fileName = `${userId}-${Date.now()}.${fileExtension}`;
+      const filePath = join(uploadsDir, fileName);
+
+      // Convert file to buffer and save
+      const bytes = await profilePictureFile.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      
+      await writeFile(filePath, buffer);
+      
+      // Set the URL for database storage
+      profilePictureUrl = `/uploads/avatars/${fileName}`;
+      
+      console.log('File uploaded successfully:', profilePictureUrl);
     }
 
     // First, check if user exists
@@ -82,15 +125,17 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Prepare update data
+    const updateData: any = {};
+    if (userNickname !== null) updateData.userNickname = userNickname;
+    if (language !== null) updateData.language = language;
+    if (timezone !== null) updateData.timezone = timezone;
+    if (profilePictureUrl !== undefined) updateData.profilePictureUrl = profilePictureUrl;
+
     // Update user profile
     const updatedUser = await prisma.user.update({
       where: { id: BigInt(userId) },
-      data: {
-        ...(userNickname !== undefined && { userNickname }),
-        ...(profilePictureUrl !== undefined && { profilePictureUrl }),
-        ...(language !== undefined && { language }),
-        ...(timezone !== undefined && { timezone }),
-      },
+      data: updateData,
     });
 
     return NextResponse.json({
