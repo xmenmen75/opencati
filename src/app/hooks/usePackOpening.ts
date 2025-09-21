@@ -1,10 +1,18 @@
 import { useState, useCallback } from 'react';
 import { useOpenPack } from '@/hooks/queries';
-import type { PackOpeningResult, Card } from '@/types/card';
+import type { PackOpeningResult, Card, CardRank } from '@/types/card';
+import type { PackOpenResponse } from '@/services/api';
+
+interface PackFailureResult {
+  success: false;
+  failureReason: string;
+  message: string;
+}
 
 interface UsePackOpeningState {
   isOpening: boolean;
   result: PackOpeningResult | null;
+  failureResult: PackFailureResult | null;
   openPack: () => Promise<void>;
   resetResult: () => void;
   error: string | null;
@@ -12,6 +20,7 @@ interface UsePackOpeningState {
 
 export const usePackOpening = (): UsePackOpeningState => {
   const [result, setResult] = useState<PackOpeningResult | null>(null);
+  const [failureResult, setFailureResult] = useState<PackFailureResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   const openPackMutation = useOpenPack();
@@ -20,21 +29,29 @@ export const usePackOpening = (): UsePackOpeningState => {
     if (openPackMutation.isPending) return;
     
     setResult(null);
+    setFailureResult(null);
     setError(null);
     
     try {
       // Call the actual API
-      const packResult = await openPackMutation.mutateAsync();
+      const packResult: PackOpenResponse = await openPackMutation.mutateAsync();
       
       if (packResult && packResult.success && packResult.card) {
-        // Convert the API response to Card for the result
+        // Successful pack opening - convert the API response to Card for the result
         const card: Card = {
           id: packResult.card.id,
-          rank: packResult.card.rank,
+          rank: packResult.card.rank as CardRank,
           name: packResult.card.name,
-          image: (packResult.card as any).imageUrl, // API returns imageUrl
+          image: packResult.card.image, // OwnedCard has image property
         };
         setResult({ card });
+      } else if (packResult && !packResult.success) {
+        // Pack failure - no card won but CATI was spent
+        setFailureResult({
+          success: false,
+          failureReason: packResult.failureReason || 'Unknown failure',
+          message: packResult.message || 'Pack opened but no card was won',
+        });
       } else {
         setError('Invalid response from server');
       }
@@ -47,6 +64,7 @@ export const usePackOpening = (): UsePackOpeningState => {
 
   const resetResult = useCallback(() => {
     setResult(null);
+    setFailureResult(null);
     setError(null);
     openPackMutation.reset();
   }, [openPackMutation]);
@@ -54,6 +72,7 @@ export const usePackOpening = (): UsePackOpeningState => {
   return {
     isOpening: openPackMutation.isPending,
     result,
+    failureResult,
     openPack,
     resetResult,
     error,

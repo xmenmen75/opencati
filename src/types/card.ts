@@ -43,3 +43,32 @@ export interface CardProbability {
 export interface PackOpeningResult {
   card: Card;
 }
+
+export interface PackOpenResponse {
+  success: boolean;
+  card?: {
+    id: string;
+    rank: string;
+    name: string;
+    imageUrl: string;
+    rarityColor: string;
+    designer: string;
+    poolSharePercentage: string;
+    catiSpent: string;
+    catiReward: string;
+    acquiredAt: string;
+    season: {
+      id: string;
+      name: string;
+      slogan: string;
+    };
+  };
+  failureReason?: string;
+  message?: string;
+  newBalance: string;
+  season?: {
+    id: string;
+    name: string;
+    slogan: string;
+  };
+}

@@ -108,8 +108,15 @@ export const userApi = {
 
 export interface PackOpenResponse {
   success: boolean;
-  card: OwnedCard;
+  card?: OwnedCard;
+  failureReason?: string;
+  message?: string;
   newBalance: string;
+  season?: {
+    id: string;
+    name: string;
+    slogan: string;
+  };
 }
 
 export interface SeasonRewardsResponse {

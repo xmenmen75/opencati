@@ -11,7 +11,7 @@ interface PackOpeningProps {
 }
 
 export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPacks = true }) => {
-  const { isOpening, result, openPack, resetResult, error } = usePackOpening();
+  const { isOpening, result, failureResult, openPack, resetResult, error } = usePackOpening();
 
   return (
     <div className={cn(
@@ -36,7 +36,7 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
           {/* Pack Opening Section */}
           <div className="flex-1 flex flex-col items-center space-y-6">
             {/* Open Button or Insufficient Balance Message */}
-            {!isOpening && !result && (
+            {!isOpening && !result && !failureResult && (
               <>
                 {canOpenPacks ? (
                   <Button
@@ -74,6 +74,39 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
               </div>
             )}
 
+            {/* Pack Failure Result */}
+            {failureResult && !isOpening && (
+              <div className="flex flex-col items-center space-y-6">
+                <div className="text-center p-8 bg-orange-500/20 border border-orange-500/50 rounded-lg max-w-md">
+                  <div className="text-6xl mb-4">💸</div>
+                  <h3 className="text-orange-200 font-bold text-xl mb-2">Pack Failed!</h3>
+                  <p className="text-orange-200/90 mb-1">{failureResult.message}</p>
+                  <p className="text-orange-200/70 text-sm">{failureResult.failureReason}</p>
+                  <div className="mt-4 p-3 bg-orange-600/30 rounded">
+                    <p className="text-orange-100 text-sm font-medium">
+                      Your 500 CATI has been spent, but you didn't win a card this time.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex space-x-4">
+                  <Button
+                    onClick={openPack}
+                    disabled={isOpening || !canOpenPacks}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0"
+                  >
+                    Try Again
+                  </Button>
+                  <Button
+                    onClick={resetResult}
+                    variant="outline"
+                    className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm"
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Card Result */}
             {result && !isOpening && (
               <div className="flex flex-col items-center space-y-6">
@@ -84,7 +117,7 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
                 <div className="flex space-x-4">
                   <Button
                     onClick={openPack}
-                    disabled={isOpening}
+                    disabled={isOpening || !canOpenPacks}
                     className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-0"
                   >
                     Open Another
