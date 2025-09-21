@@ -5,6 +5,25 @@ export interface Card {
   image?: string;
 }
 
+export interface OwnedCard {
+  id: string;
+  cardId: string;
+  rank: CardRank;
+  name: string;
+  image?: string;
+  poolSharePercentage: string;
+  rarityColor: string;
+  designer: string;
+  catiSpent: string;
+  catiReward: string;
+  acquiredAt: string;
+  season: {
+    id: string;
+    name: string;
+    slogan: string;
+  };
+}
+
 export const CardRank = {
   A: 'A',
   AA: 'AA',

@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import type { User } from '@/types/user';
+import type { OwnedCard, PackOpeningResult } from '@/types/card';
 
 export interface AuthNonceResponse {
   nonce: string;
@@ -105,6 +106,56 @@ export const userApi = {
   },
 };
 
+export interface PackOpenResponse {
+  success: boolean;
+  card: OwnedCard;
+  newBalance: string;
+}
+
+export interface SeasonRewardsResponse {
+  season: {
+    id: string;
+    name: string;
+    slogan: string;
+    sponsorAmount: string;
+  };
+  poolInfo: {
+    totalPool: string;
+    totalSpent: string;
+    sponsorAmount: string;
+    rankPools: Record<string, string>;
+    rankCounts: Record<string, number>;
+    rewardPerCard: Record<string, string>;
+  };
+  userSummary: Array<{
+    user: {
+      id: string;
+      userNickname: string;
+    };
+    totalSpent: string;
+    totalReward: string;
+    cardCounts: Record<string, number>;
+    cardDetails: Array<{
+      id: string;
+      cardName: string;
+      rank: string;
+      catiSpent: string;
+      catiReward: string;
+      acquiredAt: string;
+    }>;
+    roi: number;
+  }>;
+  seasonRewards: Array<{
+    user: {
+      id: string;
+      userNickname: string;
+    };
+    totalPoolShare: number;
+    rewardAmount: string;
+    status: string;
+  }>;
+}
+
 /**
  * Cards API functions
  */
@@ -112,14 +163,14 @@ export const cardsApi = {
   /**
    * Get user's owned cards
    */
-  getOwnedCards: async (): Promise<unknown[]> => {
+  getOwnedCards: async (): Promise<OwnedCard[]> => {
     return apiClient.get('/api/cards/owned');
   },
 
   /**
    * Open a card pack
    */
-  openPack: async (): Promise<unknown> => {
+  openPack: async (): Promise<PackOpenResponse> => {
     return apiClient.post('/api/cards/open-pack');
   },
 };
@@ -140,6 +191,13 @@ export const seasonsApi = {
    */
   getSeason: async (seasonId: string): Promise<unknown> => {
     return apiClient.get(`/api/seasons/${seasonId}`);
+  },
+
+  /**
+   * Get season rewards information
+   */
+  getSeasonRewards: async (): Promise<SeasonRewardsResponse> => {
+    return apiClient.get('/api/season/rewards');
   },
 };
 

@@ -2,16 +2,16 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { CardDisplay } from '@/app/home/_components/CardDisplay';
 import { PackOpeningAnimation } from '@/app/home/_components/PackOpeningAnimation';
-import { ProbabilityDisplay } from '@/app/home/_components/ProbabilityDisplay';
 import { cn } from '@/lib/utils';
 import { usePackOpening } from '@/app/hooks/usePackOpening';
 
 interface PackOpeningProps {
   className?: string;
+  canOpenPacks?: boolean;
 }
 
-export const PackOpening: React.FC<PackOpeningProps> = ({ className }) => {
-  const { isOpening, result, openPack, resetResult } = usePackOpening();
+export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPacks = true }) => {
+  const { isOpening, result, openPack, resetResult, error } = usePackOpening();
 
   return (
     <div className={cn(
@@ -25,7 +25,9 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className }) => {
             Card Pack Opening
           </h1>
           <p className="text-white/80 text-lg">
-            Click the Open button to reveal your card!
+            {canOpenPacks 
+              ? "Click the Open button to reveal your card!" 
+              : "Get more CATI to start opening packs!"}
           </p>
         </div>
 
@@ -33,19 +35,44 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className }) => {
         <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
           {/* Pack Opening Section */}
           <div className="flex-1 flex flex-col items-center space-y-6">
-            {/* Open Button */}
+            {/* Open Button or Insufficient Balance Message */}
             {!isOpening && !result && (
-              <Button
-                onClick={openPack}
-                size="lg"
-                className="px-8 py-4 text-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white transform hover:scale-105 transition-all duration-200 shadow-2xl border-0"
-              >
-                Open Pack
-              </Button>
+              <>
+                {canOpenPacks ? (
+                  <Button
+                    onClick={openPack}
+                    size="lg"
+                    className="px-8 py-4 text-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white transform hover:scale-105 transition-all duration-200 shadow-2xl border-0"
+                  >
+                    Open Pack
+                  </Button>
+                ) : (
+                  <div className="text-center p-6 bg-yellow-500/20 border border-yellow-500/50 rounded-lg max-w-md">
+                    <h3 className="text-yellow-200 font-bold text-lg mb-2">Insufficient CATI Balance</h3>
+                    <p className="text-yellow-200/80">
+                      You need at least 500 CATI to open a pack. Get more CATI to continue playing!
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Opening Animation */}
             {isOpening && <PackOpeningAnimation isOpening={isOpening} />}
+
+            {/* Error Display */}
+            {error && (
+              <div className="text-center p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
+                <p className="text-red-200 font-medium">Error: {error}</p>
+                <Button
+                  onClick={resetResult}
+                  variant="outline"
+                  className="mt-2 border-red-500/50 text-red-200 hover:bg-red-500/10"
+                >
+                  Try Again
+                </Button>
+              </div>
+            )}
 
             {/* Card Result */}
             {result && !isOpening && (
@@ -73,10 +100,6 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className }) => {
               </div>
             )}
           </div>
-
-          {/* <div className="lg:w-80">
-            <ProbabilityDisplay />
-          </div> */}
         </div>
 
         {/* <div className="text-center text-gray-600 text-sm">

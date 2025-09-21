@@ -10,13 +10,16 @@ interface TopBarProps {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  ownedCardsCount: number;
+  totalPoolAmount?: string;
+  userRewardAmount?: string;
   onConnectWallet: () => void;
   onDisconnectWallet: () => void;
   onSettings: () => void;
   onOpenCardsDialog: () => void;
 }
 
-export function TopBar({ walletState, user, isAuthenticated, isLoading, onConnectWallet, onDisconnectWallet, onSettings, onOpenCardsDialog }: TopBarProps) {
+export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCardsCount, totalPoolAmount, userRewardAmount, onConnectWallet, onDisconnectWallet, onSettings, onOpenCardsDialog }: TopBarProps) {
   return (
     <div className="w-full text-white p-4">
       <div className="flex justify-between items-center mx-auto">
@@ -26,13 +29,13 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, onConnec
           <Button
             onClick={onOpenCardsDialog}
             disabled={!walletState.isConnected || !isAuthenticated}
-            className={`backdrop-blur-sm transition-colors shadow-lg px-3 py-2 h-auto ${
+            className={`backdrop-blur-sm transition-colors shadow-lg px-3 py-2 h-auto cursor-pointer ${
               (walletState.isConnected && isAuthenticated)
                 ? 'bg-white/90 text-black hover:bg-white' 
                 : 'bg-white/50 text-gray-500 cursor-not-allowed hover:bg-white/50'
             }`}
           >
-            Cards: {(walletState.isConnected && isAuthenticated && user?.ownedCards?.length) || 0}
+            Cards: {(walletState.isConnected && isAuthenticated) ? ownedCardsCount : 0}
           </Button>
 
           {/* CATI balance button - always visible */}
@@ -51,9 +54,15 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, onConnec
           <div className={`items-center flex flex-row gap-4 text-sm ${
             (walletState.isConnected && isAuthenticated) ? 'text-white' : 'text-white/50'
           }`}>
-            <span>Pool Amt: {(walletState.isConnected && isAuthenticated) ? '850,930 CATI' : '---'}</span>
+            <span>Pool Amt: {(walletState.isConnected && isAuthenticated) ? 
+              (totalPoolAmount ? `${parseInt(totalPoolAmount).toLocaleString()} CATI` : 'Loading...') : 
+              '---'
+            }</span>
             <div className='h-5 w-0.5 bg-white/40'></div>
-            <span>Reward: {(walletState.isConnected && isAuthenticated) ? '1,000,000 CATI' : '---'}</span>
+            <span>Reward: {(walletState.isConnected && isAuthenticated) ? 
+              (userRewardAmount ? `${parseInt(userRewardAmount).toLocaleString()} CATI` : 'Loading...') : 
+              '---'
+            }</span>
           </div>
         </div>
 
@@ -90,7 +99,7 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, onConnec
                 variant="ghost"
                 size="sm"
                 onClick={onSettings}
-                className="bg-white text-black hover:bg-gray-100"
+                className="bg-white cursor-pointer text-black hover:bg-gray-100"
               >
                 <Settings className="h-4 w-4" />
               </Button>

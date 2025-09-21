@@ -11,10 +11,10 @@ import {
 } from '@/components/ui/dialog';
 import { Check, CheckCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Card as CardType } from '@/types/card';
+import type { OwnedCard } from '@/types/card';
 
 interface OwnedCardsDialogProps {
-  cards: CardType[];
+  cards: OwnedCard[];
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -109,7 +109,10 @@ export function OwnedCardsDialog({ cards, isOpen, onOpenChange }: OwnedCardsDial
                         )}
 
                         {/* Card display */}
-                        <div className="w-full aspect-[3/4] bg-gradient-to-b from-gray-600 to-gray-800 rounded flex items-center justify-center text-white mb-2">
+                        <div 
+                          className="w-full aspect-[3/4] rounded flex items-center justify-center text-white mb-2"
+                          style={{ backgroundColor: card.rarityColor || '#374151' }}
+                        >
                           <div className="text-center">
                             <div className="text-lg font-bold">{card.rank}</div>
                             <div className="text-xs opacity-80">RANK</div>
@@ -119,11 +122,6 @@ export function OwnedCardsDialog({ cards, isOpen, onOpenChange }: OwnedCardsDial
                         {/* Card name */}
                         <div className="text-sm text-center font-medium truncate">
                           {card.name}
-                        </div>
-                        
-                        {/* Card rank indicator */}
-                        <div className="text-xs text-center text-gray-500 mt-1">
-                          Rank: {card.rank}
                         </div>
                       </div>
                     </div>

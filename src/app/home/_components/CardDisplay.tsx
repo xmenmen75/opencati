@@ -41,9 +41,9 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
         </div>
         
         {/* Probability */}
-        <p className="text-white/80 text-sm">
+        {/* <p className="text-white/80 text-sm">
           {probability ? `${(probability.probability * 100).toFixed(3)}% chance` : 'Unknown rarity'}
-        </p>
+        </p> */}
       </div>
       
       {/* Shine Effect */}

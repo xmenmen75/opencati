@@ -18,6 +18,7 @@ export const queryKeys = {
   seasons: {
     active: ['seasons', 'active'] as const,
     detail: (id: string) => ['seasons', 'detail', id] as const,
+    rewards: ['seasons', 'rewards'] as const,
   },
   transactions: {
     list: (limit: number, offset: number) => ['transactions', 'list', limit, offset] as const,
@@ -130,10 +131,11 @@ export const useUpdateUserProfile = () => {
  * Cards Hooks
  */
 
-export const useOwnedCards = () => {
+export const useOwnedCards = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: queryKeys.cards.owned,
     queryFn: cardsApi.getOwnedCards,
+    enabled: options?.enabled ?? true,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 };
@@ -150,6 +152,9 @@ export const useOpenPack = () => {
       // Also invalidate user profile to update CATI balance
       queryClient.invalidateQueries({ queryKey: queryKeys.user.profile });
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
+      
+      // Invalidate season rewards to update pool and user rewards
+      queryClient.invalidateQueries({ queryKey: queryKeys.seasons.rewards });
     },
   });
 };
@@ -172,6 +177,16 @@ export const useSeason = (seasonId: string, enabled = true) => {
     queryFn: () => seasonsApi.getSeason(seasonId),
     enabled: enabled && !!seasonId,
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useSeasonRewards = (options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: queryKeys.seasons.rewards,
+    queryFn: seasonsApi.getSeasonRewards,
+    enabled: options?.enabled ?? true,
+    staleTime: 1 * 60 * 1000, // 1 minute
+    refetchInterval: 2 * 60 * 1000, // Refetch every 2 minutes
   });
 };
 

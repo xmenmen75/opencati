@@ -7,16 +7,23 @@ import { OwnedCardsDialog } from '@/app/home/_components/OwnedCardsDialog';
 import { SettingsDialog } from '@/app/home/_components/SettingsDialog';
 import { LoadingPage } from '@/components/ui/Loading';
 import { useWallet } from '../hooks/useWallet';
-// import { useOwnedCards } from '@/hooks/queries';
-import { CardService } from '../services/cardService';
+import { useOwnedCards, useSeasonRewards } from '@/hooks/queries';
 
 function Home() {
   const { walletState, user, isAuthenticated, connectWallet, disconnectWallet, isCorrectNetwork, authError, clearAuthError, authLoading } = useWallet();
   const [isCardsDialogOpen, setIsCardsDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   
-  // Use React Query to fetch owned cards
-  // const { data: ownedCardsData, isLoading: cardsLoading, error: cardsError } = useOwnedCards();
+  // Use React Query to fetch owned cards - only when user is authenticated
+  const shouldFetchData = isAuthenticated && !!user;
+  const { data: ownedCardsData, isLoading: cardsLoading, error: cardsError } = useOwnedCards({
+    enabled: shouldFetchData
+  });
+  
+  // Use React Query to fetch season rewards data - only when user is authenticated  
+  const { data: seasonRewards, isLoading: seasonRewardsLoading } = useSeasonRewards({
+    enabled: shouldFetchData
+  });
   
   const handleSettings = () => {
     setIsSettingsDialogOpen(true);
@@ -28,15 +35,25 @@ function Home() {
     setIsCardsDialogOpen(true);
   };
 
-  // Check if user can play (wallet connected, authenticated, correct network, and has CATI tokens)
-  const canPlay = walletState.isConnected && isAuthenticated && isCorrectNetwork && user && parseInt(user.catiBalance) > 0;
+  // Check if user can access the game interface (wallet connected, authenticated, correct network)
+  const canAccessGame = walletState.isConnected && isAuthenticated && isCorrectNetwork && user;
+  
+  // Check if user can open packs (needs CATI balance > 0)
+  const canOpenPacks = canAccessGame && user && parseInt(user.catiBalance) > 0;
   
   // Check if wallet connection/auth is in progress
   const isLoading = walletState.isConnecting || authLoading;
 
   // Get user's owned cards for display
-  // For now, use mock data. When API is ready, use ownedCardsData
-  const ownedCards = user ? CardService.generateMockOwnedCards(user.ownedCards || []) : CardService.generateMockOwnedCards([]);
+  const ownedCards = ownedCardsData || [];
+  
+  // Get user's reward amount from season rewards data
+  const userRewardAmount = user && user.id && seasonRewards ? 
+    seasonRewards.seasonRewards.find(reward => reward.user.id === user.id!.toString())?.rewardAmount || '0' 
+    : undefined;
+  
+  // Get total pool amount from season rewards data
+  const totalPoolAmount = seasonRewards?.poolInfo.totalPool;
   
   // Show loading page for initial authentication check
   if (authLoading && !walletState.isConnected) {
@@ -51,6 +68,9 @@ function Home() {
         user={user}
         isAuthenticated={isAuthenticated}
         isLoading={isLoading}
+        ownedCardsCount={ownedCards.length}
+        totalPoolAmount={totalPoolAmount}
+        userRewardAmount={userRewardAmount}
         onConnectWallet={connectWallet}
         onDisconnectWallet={disconnectWallet}
         onSettings={handleSettings}
@@ -59,8 +79,8 @@ function Home() {
 
       {/* Main Content */}
       <div className="flex-1">
-        {canPlay ? (
-          <PackOpening />
+        {canAccessGame ? (
+          <PackOpening canOpenPacks={canOpenPacks || false} />
         ) : (
           <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
             <div className="text-center space-y-4">
@@ -68,7 +88,7 @@ function Home() {
                 Connect Your Wallet to Play
               </h2>
               {/* Error States */}
-              {(walletState.error || authError) && (
+              {/* {(walletState.error || authError) && (
                 <div className="bg-red-500/20 backdrop-blur-sm border border-red-400/50 text-red-100 px-4 py-3 rounded-lg max-w-md mx-auto">
                   {authError && (
                     <button 
@@ -79,14 +99,14 @@ function Home() {
                     </button>
                   )}
                 </div>
-              )}
-              {/* cardsError && (
+              )} */}
+              {/* {cardsError && (
                 <div className="bg-yellow-500/20 backdrop-blur-sm border border-yellow-400/50 text-yellow-100 px-4 py-3 rounded-lg max-w-md mx-auto">
                   Failed to load cards data. Please try again.
                 </div>
-              ) */}
+              )} */}
               {/* Loading State */}
-              {isLoading && (
+              {(isLoading || cardsLoading) && (
                 <div className="bg-purple-500/20 backdrop-blur-sm border border-purple-400/50 text-purple-100 px-4 py-3 rounded-lg max-w-md mx-auto">
                   <div className="flex items-center justify-center space-x-2">
                     <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

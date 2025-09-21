@@ -4,12 +4,12 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import {
   Dialog,
@@ -21,6 +21,7 @@ import {
 import { User, Plus, AlertCircle } from 'lucide-react';
 import { useUpdateUserProfile } from '@/hooks/queries';
 import type { User as UserType } from '@/types/user';
+import DefaultCatiUserImage from '@/../public/images/default-cati-user.webp';
 
 interface SettingsDialogProps {
   user: UserType | null;
@@ -55,7 +56,7 @@ const TIMEZONES = [
 
 export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogProps) {
   const updateUserProfileMutation = useUpdateUserProfile();
-  
+
   const [settings, setSettings] = useState<UserSettings>({
     userNickname: user?.userNickname || '',
     profilePictureFile: null,
@@ -108,12 +109,12 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
     }
 
     setSettings(prev => ({ ...prev, profilePictureFile: file }));
-    
+
     // Clean up previous preview URL
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
-    
+
     // Create new preview URL
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
@@ -122,7 +123,7 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       handleFileUpload(files[0]);
@@ -140,7 +141,7 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
     const toastId = toast.loading('Updating profile...', {
       description: 'Please wait while we save your changes',
     });
-    
+
     try {
       const updateData = {
         userNickname: settings.userNickname,
@@ -148,20 +149,20 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
         timezone: settings.timezone,
         ...(settings.profilePictureFile && { profilePictureFile: settings.profilePictureFile }),
       };
-      
+
       await updateUserProfileMutation.mutateAsync(updateData);
-      
+
       toast.success('Profile updated successfully!', {
         id: toastId,
         description: 'Your profile settings have been saved',
       });
-      
+
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to update profile:', error);
-      
+
       const errorMessage = error instanceof Error ? error.message : 'Failed to update profile. Please try again.';
-      
+
       toast.error('Failed to update profile', {
         id: toastId,
         description: errorMessage,
@@ -177,7 +178,7 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
       timezone: user?.timezone || 'UTC',
     });
     setImageError(false);
-    
+
     // Clean up preview URL
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
@@ -198,18 +199,14 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
             {/* Profile Picture */}
             <div className="flex flex-row items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center overflow-hidden relative">
-                {user?.profilePictureUrl && !imageError ? (
-                  <Image
-                    src={user.profilePictureUrl}
-                    alt="Profile"
-                    width={64}
-                    height={64}
-                    className="w-full h-full object-cover"
-                    onError={() => setImageError(true)}
-                  />
-                ) : (
-                  <User className="w-8 h-8 text-gray-500" />
-                )}
+                <Image
+                  src={user?.profilePictureUrl || DefaultCatiUserImage}
+                  alt="Profile"
+                  width={64}
+                  height={64}
+                  className="w-full h-full object-cover"
+                  onError={() => setImageError(true)}
+                />
               </div>
 
               {/* User Info */}
@@ -241,11 +238,10 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
             <div className="space-y-2">
               <Label htmlFor="profileImage">Profile Image (Avatar)</Label>
               <div
-                className={`relative border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer ${
-                  dragOver 
-                    ? 'border-blue-400 bg-blue-50' 
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
+                className={`relative border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer ${dragOver
+                  ? 'border-blue-400 bg-blue-50'
+                  : 'border-gray-300 hover:border-gray-400'
+                  }`}
                 onDrop={handleDrop}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -261,7 +257,7 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
                   className="hidden"
                   onChange={handleFileInput}
                 />
-                
+
                 <div className="flex flex-col items-center justify-center text-center">
                   {previewUrl ? (
                     <div className="flex flex-col items-center">
@@ -341,7 +337,7 @@ export function SettingsDialog({ user, isOpen, onOpenChange }: SettingsDialogPro
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleSave}
                 disabled={updateUserProfileMutation.isPending}
               >

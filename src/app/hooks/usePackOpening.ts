@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useOpenPack } from '@/hooks/queries';
-import type { PackOpeningResult } from '@/types/card';
-import { CardService } from '../services/cardService';
+import type { PackOpeningResult, Card } from '@/types/card';
 
 interface UsePackOpeningState {
   isOpening: boolean;
@@ -24,20 +23,27 @@ export const usePackOpening = (): UsePackOpeningState => {
     setError(null);
     
     try {
-      // For now, use the existing CardService for mock data
-      // In the future, this would call the actual API
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const packResult = CardService.openPack();
+      // Call the actual API
+      const packResult = await openPackMutation.mutateAsync();
       
-      // TODO: Replace with actual API call when backend is ready
-      // const packResult = await openPackMutation.mutateAsync();
-      
-      setResult(packResult);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to open pack';
+      if (packResult && packResult.success && packResult.card) {
+        // Convert the API response to Card for the result
+        const card: Card = {
+          id: packResult.card.id,
+          rank: packResult.card.rank,
+          name: packResult.card.name,
+          image: (packResult.card as any).imageUrl, // API returns imageUrl
+        };
+        setResult({ card });
+      } else {
+        setError('Invalid response from server');
+      }
+    } catch (err: any) {
+      const errorMessage = err?.message || err?.error || 'Failed to open pack';
       setError(errorMessage);
+      console.error('Pack opening failed:', err);
     }
-  }, [openPackMutation.isPending]);
+  }, [openPackMutation]);
 
   const resetResult = useCallback(() => {
     setResult(null);
