@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyJWT } from '@/lib/auth';
-import { CardRank } from '@/types/card';
-import { selectRandomCard, ORIGINAL_CARD_SELECTION_CONFIG, type CardWithProbability } from '@/lib/card-selector';
+import { selectRandomCard, type SeasonCardWithProbability } from '@/lib/card-selector';
 import { calculateSeasonRewards } from '@/lib/reward-calculator';
 
 // CATI cost per pack opening (reasonable amount)
 const PACK_COST = BigInt('500'); // 500 CATI
 
-function calculateCatiSpent(rank: string): bigint {
+function calculateCatiSpent(): bigint {
   // All cards cost the same 500 CATI when opening packs
   return PACK_COST; // 500 CATI for all ranks
 }
 
-async function recalculateSeasonRewards(seasonId: bigint, tx: any) {
+async function recalculateSeasonRewards(seasonId: bigint, tx: Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">) {
   // Get current season
   const season = await tx.season.findUnique({
     where: { id: seasonId },
@@ -125,26 +124,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get all available cards
-    const cards = await prisma.card.findMany({
-      select: {
-        id: true,
-        rank: true,
-        poolSharePercentage: true,
-        name: true,
-        imageUrl: true,
-        rarityColor: true,
-        designer: true,
-      },
-    });
-
-    if (cards.length === 0) {
-      return NextResponse.json(
-        { error: 'No cards available' },
-        { status: 500 }
-      );
-    }
-
     // Get active season
     const activeSeason = await prisma.season.findFirst({
       where: { status: 'ACTIVE' },
@@ -157,8 +136,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get all available cards for the active season
+    const seasonCards = await prisma.seasonCard.findMany({
+      where: { 
+        seasonId: activeSeason.id,
+        isActive: true 
+      },
+      include: {
+        card: {
+          select: {
+            id: true,
+            rank: true,
+            name: true,
+            imageUrl: true,
+            rarityColor: true,
+            designer: true,
+          }
+        }
+      },
+    });
+
+    if (seasonCards.length === 0) {
+      return NextResponse.json(
+        { error: 'No cards available for current season' },
+        { status: 500 }
+      );
+    }
+
+    // Transform to the format expected by selectRandomCard
+    const cardsWithProbability: SeasonCardWithProbability[] = seasonCards.map(sc => ({
+      id: sc.card.id,
+      rank: sc.card.rank,
+      name: sc.card.name,
+      imageUrl: sc.card.imageUrl,
+      rarityColor: sc.card.rarityColor,
+      designer: sc.card.designer,
+      poolSharePercentage: sc.poolSharePercentage,
+      dropProbability: sc.dropProbability,
+      seasonCardId: sc.id,
+    }));
+
     // Select a random card based on probabilities (with possible failure)
-    const cardResult = selectRandomCard(cards, ORIGINAL_CARD_SELECTION_CONFIG);
+    const cardResult = selectRandomCard(cardsWithProbability);
 
     // Start transaction - we always deduct CATI even on pack failure
     const result = await prisma.$transaction(async (tx) => {
@@ -190,7 +209,7 @@ export async function POST(request: NextRequest) {
       if (cardResult.success && cardResult.card) {
         // Pack was successful - create user card entry
         const selectedCard = cardResult.card;
-        const catiSpent = calculateCatiSpent(selectedCard.rank);
+        const catiSpent = calculateCatiSpent();
 
         const userCard = await tx.userCard.create({
           data: {

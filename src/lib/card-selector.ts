@@ -3,11 +3,16 @@ import { Decimal } from '@prisma/client/runtime/library';
 export interface CardWithProbability {
   id: number;
   rank: string;
-  poolSharePercentage: Decimal;
   name: string;
   imageUrl: string;
   rarityColor: string;
   designer: string;
+}
+
+export interface SeasonCardWithProbability extends CardWithProbability {
+  poolSharePercentage: Decimal;
+  dropProbability: Decimal;
+  seasonCardId: bigint;
 }
 
 export interface CardSelectionConfig {
@@ -43,73 +48,106 @@ export const ORIGINAL_CARD_SELECTION_CONFIG: CardSelectionConfig = {
 
 export interface PackOpenResult {
   success: boolean;
-  card?: CardWithProbability;
+  card?: SeasonCardWithProbability;
   failureReason?: string;
 }
 
 /**
- * Pure function to select a random card based on probabilities
- * This function can be tested independently with controlled randomness
+ * Pure function to select a random card based on rank probabilities from SeasonCard data
+ * First selects a rank, then randomly picks a card from that rank
  * Returns a result object that can indicate pack failure
  */
 export function selectRandomCard(
-  cards: CardWithProbability[], 
-  config: CardSelectionConfig = DEFAULT_CARD_SELECTION_CONFIG,
+  seasonCards: SeasonCardWithProbability[], 
   randomValue?: number // Optional for testing with controlled randomness
 ): PackOpenResult {
-  if (cards.length === 0) {
+  if (seasonCards.length === 0) {
     throw new Error('No cards available for selection');
   }
 
-  // Group cards by rank
-  const cardsByRank = cards.reduce((acc, card) => {
-    if (!acc[card.rank]) {
-      acc[card.rank] = [];
+  // Filter only active cards
+  const activeCards = seasonCards.filter(sc => sc.dropProbability.gt(0));
+  
+  if (activeCards.length === 0) {
+    return {
+      success: false,
+      failureReason: 'No active cards available for this season'
+    };
+  }
+
+  // Group cards by rank and calculate rank probabilities
+  const cardsByRank: Record<string, SeasonCardWithProbability[]> = {};
+  const rankProbabilities: Record<string, number> = {};
+
+  for (const card of activeCards) {
+    if (!cardsByRank[card.rank]) {
+      cardsByRank[card.rank] = [];
+      rankProbabilities[card.rank] = 0;
     }
-    acc[card.rank].push(card);
-    return acc;
-  }, {} as Record<string, CardWithProbability[]>);
+    cardsByRank[card.rank].push(card);
+    // Use the first card's drop probability as the rank probability
+    // (assuming all cards of same rank have same probability)
+    if (rankProbabilities[card.rank] === 0) {
+      rankProbabilities[card.rank] = parseFloat(card.dropProbability.toString());
+    }
+  }
 
   // Use provided random value or generate one
   const random = randomValue !== undefined ? randomValue : Math.random();
   
   // Sort ranks by rarity (most valuable first) for proper probability handling
-  const sortedRanks = ['SS', 'S', 'AA', 'A'];
+  const rankOrder = { 'SS': 0, 'S': 1, 'AA': 2, 'A': 3 };
+  const sortedRanks = Object.keys(rankProbabilities).sort((a, b) => {
+    const rankA = rankOrder[a as keyof typeof rankOrder] ?? 99;
+    const rankB = rankOrder[b as keyof typeof rankOrder] ?? 99;
+    return rankA - rankB;
+  });
   
   // Calculate cumulative probabilities and select rank
   let cumulativeProbability = 0;
+  let selectedRank: string | null = null;
   
   for (const rank of sortedRanks) {
-    const probability = config.winningProbabilities[rank] || 0;
+    const probability = rankProbabilities[rank];
     cumulativeProbability += probability;
     
-    if (random <= cumulativeProbability && cardsByRank[rank] && cardsByRank[rank].length > 0) {
-      // Randomly select a card from this rank
-      const cardsInRank = cardsByRank[rank];
-      const randomCardIndex = Math.floor(Math.random() * cardsInRank.length);
-      return {
-        success: true,
-        card: cardsInRank[randomCardIndex]
-      };
+    if (random <= cumulativeProbability) {
+      selectedRank = rank;
+      break;
     }
   }
 
-  // Calculate total probability to determine if this should be a pack failure
-  const totalWinProbability = Object.values(config.winningProbabilities).reduce((sum, prob) => sum + prob, 0);
-  
-  if (random > totalWinProbability) {
-    // Pack failure - no card won
+  // If no rank was selected, check if this should be a pack failure
+  if (!selectedRank) {
+    const totalWinProbability = Object.values(rankProbabilities).reduce((sum, prob) => sum + prob, 0);
+    
+    if (random > totalWinProbability) {
+      // Pack failure - no card won
+      return {
+        success: false,
+        failureReason: 'Pack opened but no card was won. Better luck next time!'
+      };
+    }
+
+    // Fallback to most common rank (A) if something goes wrong
+    selectedRank = sortedRanks[sortedRanks.length - 1] || sortedRanks[0];
+  }
+
+  // Randomly select a card from the selected rank
+  const cardsInSelectedRank = cardsByRank[selectedRank];
+  if (!cardsInSelectedRank || cardsInSelectedRank.length === 0) {
     return {
       success: false,
-      failureReason: 'Pack opened but no card was won. Better luck next time!'
+      failureReason: 'No cards available in selected rank'
     };
   }
 
-  // Fallback to most common rank (A) if something goes wrong
-  const fallbackCards = cardsByRank['A'] || Object.values(cardsByRank)[0] || cards;
+  const randomCardIndex = Math.floor(Math.random() * cardsInSelectedRank.length);
+  const selectedCard = cardsInSelectedRank[randomCardIndex];
+
   return {
     success: true,
-    card: fallbackCards[Math.floor(Math.random() * fallbackCards.length)]
+    card: selectedCard
   };
 }
 
@@ -127,31 +165,35 @@ export function validateCardSelectionConfig(config: CardSelectionConfig): boolea
  * Function to get probability distribution for testing (including failure chance)
  */
 export function getProbabilityDistribution(
-  cards: CardWithProbability[],
-  config: CardSelectionConfig = DEFAULT_CARD_SELECTION_CONFIG
+  seasonCards: SeasonCardWithProbability[]
 ): Record<string, { probability: number; cardCount: number; cards: string[] }> {
-  const cardsByRank = cards.reduce((acc, card) => {
-    if (!acc[card.rank]) {
-      acc[card.rank] = [];
+  const cardsByRank = seasonCards.reduce((acc, seasonCard) => {
+    if (!acc[seasonCard.rank]) {
+      acc[seasonCard.rank] = [];
     }
-    acc[card.rank].push(card);
+    acc[seasonCard.rank].push(seasonCard);
     return acc;
-  }, {} as Record<string, CardWithProbability[]>);
+  }, {} as Record<string, SeasonCardWithProbability[]>);
 
   const distribution: Record<string, { probability: number; cardCount: number; cards: string[] }> = {};
 
-  // Add win probabilities
-  for (const [rank, probability] of Object.entries(config.winningProbabilities)) {
-    const cardsInRank = cardsByRank[rank] || [];
+  // Add win probabilities by rank
+  for (const [rank, cards] of Object.entries(cardsByRank)) {
+    const totalProbability = cards.reduce((sum, card) => 
+      sum + parseFloat(card.dropProbability.toString()), 0
+    );
+    
     distribution[rank] = {
-      probability,
-      cardCount: cardsInRank.length,
-      cards: cardsInRank.map(card => card.name),
+      probability: totalProbability,
+      cardCount: cards.length,
+      cards: cards.map(card => card.name),
     };
   }
 
   // Calculate and add failure probability
-  const totalWinProbability = Object.values(config.winningProbabilities).reduce((sum, prob) => sum + prob, 0);
+  const totalWinProbability = seasonCards.reduce((sum, card) => 
+    sum + parseFloat(card.dropProbability.toString()), 0
+  );
   const failureProbability = Math.max(0, 1 - totalWinProbability);
   
   if (failureProbability > 0) {
@@ -169,11 +211,10 @@ export function getProbabilityDistribution(
  * Backward compatibility function that returns a card or throws on failure
  */
 export function selectRandomCardLegacy(
-  cards: CardWithProbability[], 
-  config: CardSelectionConfig = DEFAULT_CARD_SELECTION_CONFIG,
+  seasonCards: SeasonCardWithProbability[], 
   randomValue?: number
-): CardWithProbability {
-  const result = selectRandomCard(cards, config, randomValue);
+): SeasonCardWithProbability {
+  const result = selectRandomCard(seasonCards, randomValue);
   if (!result.success || !result.card) {
     throw new Error(result.failureReason || 'Pack opening failed');
   }
@@ -192,11 +233,35 @@ export function createMockCard(
   return {
     id,
     rank,
-    poolSharePercentage: new Decimal('2.5'),
     name,
     imageUrl: `/cards/${name.toLowerCase().replace(/\s+/g, '-')}.jpg`,
     rarityColor: getRarityColor(rank),
     designer: 'Test Designer',
+    ...overrides,
+  };
+}
+
+/**
+ * Helper function to create mock season card data for testing
+ */
+export function createMockSeasonCard(
+  id: number,
+  rank: string,
+  name: string,
+  dropProbability: number = 0.1,
+  poolSharePercentage: number = 2.5,
+  overrides: Partial<SeasonCardWithProbability> = {}
+): SeasonCardWithProbability {
+  return {
+    id,
+    rank,
+    name,
+    imageUrl: `/cards/${name.toLowerCase().replace(/\s+/g, '-')}.jpg`,
+    rarityColor: getRarityColor(rank),
+    designer: 'Test Designer',
+    poolSharePercentage: new Decimal(poolSharePercentage.toString()),
+    dropProbability: new Decimal(dropProbability.toString()),
+    seasonCardId: BigInt(id),
     ...overrides,
   };
 }
@@ -220,28 +285,28 @@ function getRarityColor(rank: string): string {
 }
 
 /**
- * Helper function to create a set of mock cards for testing
+ * Helper function to create a set of mock season cards for testing
  */
-export function createMockCardSet(): CardWithProbability[] {
+export function createMockSeasonCardSet(): SeasonCardWithProbability[] {
   return [
-    // A rank cards (common)
-    createMockCard(1, 'A', 'Common Fighter'),
-    createMockCard(2, 'A', 'Basic Warrior'),
-    createMockCard(3, 'A', 'Simple Mage'),
-    createMockCard(4, 'A', 'Young Archer'),
-    createMockCard(5, 'A', 'Novice Knight'),
+    // A rank cards (common) - all have 0.3 probability
+    createMockSeasonCard(1, 'A', 'Common Fighter', 0.30),
+    createMockSeasonCard(2, 'A', 'Basic Warrior', 0.30),
+    createMockSeasonCard(3, 'A', 'Simple Mage', 0.30),
+    createMockSeasonCard(4, 'A', 'Young Archer', 0.30),
+    createMockSeasonCard(5, 'A', 'Novice Knight', 0.30),
     
-    // AA rank cards (uncommon)
-    createMockCard(6, 'AA', 'Elite Guardian'),
-    createMockCard(7, 'AA', 'Skilled Assassin'),
-    createMockCard(8, 'AA', 'Veteran Spellcaster'),
+    // AA rank cards (uncommon) - all have 0.06 probability
+    createMockSeasonCard(6, 'AA', 'Elite Guardian', 0.06),
+    createMockSeasonCard(7, 'AA', 'Skilled Assassin', 0.06),
+    createMockSeasonCard(8, 'AA', 'Veteran Spellcaster', 0.06),
     
-    // S rank cards (rare)
-    createMockCard(9, 'S', 'Legendary Hero'),
-    createMockCard(10, 'S', 'Master Sorcerer'),
+    // S rank cards (rare) - all have 0.02 probability
+    createMockSeasonCard(9, 'S', 'Legendary Hero', 0.02),
+    createMockSeasonCard(10, 'S', 'Master Sorcerer', 0.02),
     
-    // SS rank cards (ultra rare)
-    createMockCard(11, 'SS', 'Divine Champion'),
+    // SS rank cards (ultra rare) - all have 0.001 probability
+    createMockSeasonCard(11, 'SS', 'Divine Champion', 0.001),
   ];
 }
 
@@ -249,14 +314,13 @@ export function createMockCardSet(): CardWithProbability[] {
  * Function to simulate multiple card draws for testing probability distribution
  */
 export function simulateCardDraws(
-  cards: CardWithProbability[],
-  drawCount: number,
-  config: CardSelectionConfig = DEFAULT_CARD_SELECTION_CONFIG
+  seasonCards: SeasonCardWithProbability[],
+  drawCount: number
 ): Record<string, number> {
   const results: Record<string, number> = {};
   
   for (let i = 0; i < drawCount; i++) {
-    const result = selectRandomCard(cards, config);
+    const result = selectRandomCard(seasonCards);
     if (result.success && result.card) {
       const rank = result.card.rank;
       results[rank] = (results[rank] || 0) + 1;

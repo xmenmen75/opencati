@@ -42,29 +42,18 @@ async function resetDatabase() {
       });
       console.log(`   ✅ Reset CATI balance for ${updatedUsers.count} users`);
       
-      // 7. Delete all existing seasons
-      console.log('🗑️  Deleting all seasons...');
-      const deletedSeasons = await tx.season.deleteMany({});
-      console.log(`   ✅ Deleted ${deletedSeasons.count} seasons`);
-      
-      // 8. Create a new active season
-      console.log('🆕 Creating new active season...');
-      const newSeason = await tx.season.create({
+      // 7. Reset all seasons' bid pool amount to zero
+      console.log('🔄 Resetting season bid pools to zero...');
+      const updatedSeasons = await tx.season.updateMany({
         data: {
-          name: 'Season 1 - Fresh Start',
-          slogan: 'New Beginning Season',
-          bidPoolAmount: BigInt(0), // No bids yet
-          additionalTotalPool: BigInt(100000), // 100,000 CATI sponsor award
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-          status: 'ACTIVE',
+          bidPoolAmount: BigInt(0),
         },
       });
-      console.log(`   ✅ Created new season: ${newSeason.name} (ID: ${newSeason.id})`);
+      console.log(`   ✅ Reset bid pool for ${updatedSeasons.count} seasons`);
       
     });
     
-    // 9. Display summary
+    // 8. Display summary
     console.log('\n📊 Reset Summary:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
@@ -72,13 +61,20 @@ async function resetDatabase() {
     const userCount = await prisma.user.count();
     const cardCount = await prisma.card.count();
     const seasonCount = await prisma.season.count();
+    const seasonCardCount = await prisma.seasonCard.count();
+    const userCardCount = await prisma.userCard.count();
+    const transactionCount = await prisma.catiTransaction.count();
+    const seasonRewardCount = await prisma.seasonReward.count();
     
     console.log(`👥 Users preserved: ${userCount}`);
     console.log(`🎴 Cards preserved: ${cardCount}`);
-    console.log(`🏆 Active seasons: ${seasonCount}`);
+    console.log(`🏆 Seasons preserved: ${seasonCount}`);
+    console.log(`🃏 Season cards preserved: ${seasonCardCount}`);
+    console.log(`🎯 User cards remaining: ${userCardCount}`);
+    console.log(`💸 Transactions remaining: ${transactionCount}`);
+    console.log(`� Season rewards remaining: ${seasonRewardCount}`);
     console.log(`💰 Each user's CATI balance: 10,000`);
-    console.log(`🎁 Sponsor pool: 100,000 CATI`);
-    console.log(`📅 Season duration: 30 days`);
+    console.log(`� All season bid pools reset to: 0`);
     
     // Get a sample user to verify
     const sampleUser = await prisma.user.findFirst({

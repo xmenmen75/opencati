@@ -1,9 +1,6 @@
-import { Decimal } from '@prisma/client/runtime/library';
-
 export interface CardData {
   id: number;
   rank: string;
-  poolSharePercentage: Decimal;
   name: string;
   imageUrl: string;
   rarityColor: string;
@@ -11,13 +8,14 @@ export interface CardData {
 }
 
 export interface UserCardData {
-  id: number;
+  id: bigint;
   userId: bigint;
   cardId: number;
   seasonId: bigint;
   catiSpent: bigint;
   catiReward: bigint;
   card: CardData;
+  // We'll get poolSharePercentage from SeasonCard when needed
 }
 
 export interface SeasonData {
@@ -31,7 +29,7 @@ export interface SeasonData {
 
 export interface RewardCalculationResult {
   userCards: Array<{
-    id: number;
+    id: bigint;
     userId: bigint;
     catiReward: bigint;
   }>;
@@ -156,7 +154,6 @@ export function createMockCardData(overrides: Partial<CardData> = {}): CardData 
   return {
     id: 1,
     rank: 'A',
-    poolSharePercentage: new Decimal('2.5'),
     name: 'Test Card',
     imageUrl: '/test-card.jpg',
     rarityColor: '#0066cc',
@@ -176,7 +173,7 @@ export function createMockUserCardData(
   overrides: Partial<UserCardData> = {}
 ): UserCardData {
   return {
-    id: Math.floor(Math.random() * 10000),
+    id: BigInt(Math.floor(Math.random() * 10000)),
     userId,
     cardId: card.id,
     seasonId,

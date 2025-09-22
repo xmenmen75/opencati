@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get user's owned cards with card details
+    // Get user's owned cards with card details and season card info
     const userCards = await prisma.userCard.findMany({
       where: {
         userId: userId,
@@ -51,25 +51,49 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Get season card info for pool share percentages
+    const seasonCardInfo = await prisma.seasonCard.findMany({
+      where: {
+        seasonId: {
+          in: userCards.map(uc => uc.seasonId)
+        },
+        cardId: {
+          in: userCards.map(uc => uc.cardId)
+        }
+      }
+    });
+
+    // Create a lookup map for season card info
+    const seasonCardMap = new Map();
+    seasonCardInfo.forEach(sc => {
+      const key = `${sc.seasonId}-${sc.cardId}`;
+      seasonCardMap.set(key, sc);
+    });
+
     // Transform the data to match frontend expectations
-    const ownedCards = userCards.map(userCard => ({
-      id: userCard.id.toString(),
-      cardId: userCard.card.id.toString(),
-      rank: userCard.card.rank,
-      name: userCard.card.name,
-      image: userCard.card.imageUrl,
-      poolSharePercentage: userCard.card.poolSharePercentage.toString(),
-      rarityColor: userCard.card.rarityColor,
-      designer: userCard.card.designer,
-      catiSpent: userCard.catiSpent.toString(),
-      catiReward: userCard.catiReward.toString(),
-      acquiredAt: userCard.acquiredAt.toISOString(),
-      season: {
-        id: userCard.season.id.toString(),
-        name: userCard.season.name,
-        slogan: userCard.season.slogan,
-      },
-    }));
+    const ownedCards = userCards.map(userCard => {
+      const seasonCardKey = `${userCard.seasonId}-${userCard.cardId}`;
+      const seasonCard = seasonCardMap.get(seasonCardKey);
+      
+      return {
+        id: userCard.id.toString(),
+        cardId: userCard.card.id.toString(),
+        rank: userCard.card.rank,
+        name: userCard.card.name,
+        image: userCard.card.imageUrl,
+        poolSharePercentage: seasonCard?.poolSharePercentage?.toString() || '0',
+        rarityColor: userCard.card.rarityColor,
+        designer: userCard.card.designer,
+        catiSpent: userCard.catiSpent.toString(),
+        catiReward: userCard.catiReward.toString(),
+        acquiredAt: userCard.acquiredAt.toISOString(),
+        season: {
+          id: userCard.season.id.toString(),
+          name: userCard.season.name,
+          slogan: userCard.season.slogan,
+        },
+      };
+    });
 
     return NextResponse.json(ownedCards);
   } catch (error) {
