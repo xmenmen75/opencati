@@ -13,13 +13,15 @@ interface TopBarProps {
   ownedCardsCount: number;
   totalPoolAmount?: string;
   userRewardAmount?: string;
+  onchainBalance?: string; // BNB balance from wallet
   onConnectWallet: () => void;
   onDisconnectWallet: () => void;
   onSettings: () => void;
   onOpenCardsDialog: () => void;
+  onOpenCatiManagement: () => void;
 }
 
-export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCardsCount, totalPoolAmount, userRewardAmount, onConnectWallet, onDisconnectWallet, onSettings, onOpenCardsDialog }: TopBarProps) {
+export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCardsCount, totalPoolAmount, userRewardAmount, onchainBalance, onConnectWallet, onDisconnectWallet, onSettings, onOpenCardsDialog, onOpenCatiManagement }: TopBarProps) {
   return (
     <div className="w-full text-white p-4">
       <div className="flex justify-between items-center mx-auto">
@@ -40,11 +42,12 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
 
           {/* CATI balance button - always visible */}
           <Button 
+            onClick={onOpenCatiManagement}
             disabled={!walletState.isConnected || !isAuthenticated}
-            className={`backdrop-blur-sm shadow-lg px-3 py-2 h-auto cursor-default ${
+            className={`backdrop-blur-sm shadow-lg px-3 py-2 h-auto ${
               (walletState.isConnected && isAuthenticated)
-                ? 'bg-[#4A5567] text-black hover:bg-[#4A5567]' 
-                : 'bg-[#4A5567]/50 text-black/50 hover:bg-[#4A5567]/50'
+                ? 'bg-[#4A5567] text-black hover:bg-[#4A5567]/80 cursor-pointer' 
+                : 'bg-[#4A5567]/50 text-black/50 cursor-not-allowed hover:bg-[#4A5567]/50'
             }`}
           >
             CATI: {(walletState.isConnected && isAuthenticated) ? (parseInt(user?.catiBalance || '0')).toLocaleString() : '---'}

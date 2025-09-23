@@ -5,6 +5,7 @@ import { PackOpening } from '@/app/home/_components/PackOpening';
 import { TopBar } from '@/app/home/_components/TopBar';
 import { OwnedCardsDialog } from '@/app/home/_components/OwnedCardsDialog';
 import { SettingsDialog } from '@/app/home/_components/SettingsDialog';
+import { CatiManagementDialog } from '@/app/home/_components/CatiManagementDialog';
 import { LoadingPage } from '@/components/ui/Loading';
 import { useWallet } from '../hooks/useWallet';
 import { useOwnedCards, useSeasonRewards } from '@/hooks/queries';
@@ -13,6 +14,7 @@ function Home() {
   const { walletState, user, isAuthenticated, connectWallet, disconnectWallet, isCorrectNetwork, authError, clearAuthError, authLoading } = useWallet();
   const [isCardsDialogOpen, setIsCardsDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [isCatiManagementDialogOpen, setIsCatiManagementDialogOpen] = useState(false);
   
   // Use React Query to fetch owned cards - only when user is authenticated
   const shouldFetchData = isAuthenticated && !!user;
@@ -29,10 +31,12 @@ function Home() {
     setIsSettingsDialogOpen(true);
   };
 
-
-
   const handleOpenCardsDialog = () => {
     setIsCardsDialogOpen(true);
+  };
+
+  const handleOpenCatiManagement = () => {
+    setIsCatiManagementDialogOpen(true);
   };
 
   // Check if user can access the game interface (wallet connected, authenticated, correct network)
@@ -71,10 +75,12 @@ function Home() {
         ownedCardsCount={ownedCards.length}
         totalPoolAmount={totalPoolAmount}
         userRewardAmount={userRewardAmount}
+        onchainBalance="0.0" // TODO: Get actual onchain balance
         onConnectWallet={connectWallet}
         onDisconnectWallet={disconnectWallet}
         onSettings={handleSettings}
         onOpenCardsDialog={handleOpenCardsDialog}
+        onOpenCatiManagement={handleOpenCatiManagement}
       />
 
       {/* Main Content */}
@@ -134,6 +140,14 @@ function Home() {
         user={user}
         isOpen={isSettingsDialogOpen}
         onOpenChange={setIsSettingsDialogOpen}
+      />
+
+      {/* CATI Management Dialog */}
+      <CatiManagementDialog
+        isOpen={isCatiManagementDialogOpen}
+        onClose={() => setIsCatiManagementDialogOpen(false)}
+        onchainBalance="0.0" // TODO: Get actual onchain balance
+        offchainBalance={user?.catiBalance || "0"}
       />
     </div>
   );
