@@ -18,7 +18,6 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
       className={cn(
         "relative w-48 h-64 rounded-xl overflow-hidden",
         "border-2 border-white/20 backdrop-blur-sm",
-        "animate-pulse duration-500",
         probability?.color,
         probability?.glowColor,
         "shadow-2xl transform transition-all duration-300 hover:scale-105",

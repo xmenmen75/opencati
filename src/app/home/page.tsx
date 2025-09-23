@@ -61,7 +61,7 @@ function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#362A85] to-[#7F174C]">
+    <div className="min-h-screen bg-gradient-to-r from-[#08080A] to-[#160218]">
       {/* Top Bar */}
       <TopBar
         walletState={walletState}
