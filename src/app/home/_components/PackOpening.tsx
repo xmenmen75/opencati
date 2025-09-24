@@ -65,7 +65,7 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
               alt="Card Pack"
               onClick={handleCardClick}
               className={cn(
-              "relative w-[70vw] max-w-[500px] h-auto cursor-pointer transform transition-all duration-300 hover:scale-105",
+              "relative w-[70vw] max-w-[500px] h-auto cursor-pointer transform transition-all duration-300 hover:scale-105 rounded-xl",
               isAnimating && "animate-spin-ease",
               !canOpenPacks && "opacity-50 cursor-not-allowed"
               )}
