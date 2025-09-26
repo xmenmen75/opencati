@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import React, { useState } from "react";
+import DealedTable from "./dealed_table";
+import EventCardDetails from "./event_card_details";
 
 export default function EventCard() {
     const [open, setOpen] = useState(false);
@@ -23,7 +25,7 @@ export default function EventCard() {
             </div>
             {open && (
                 <div className="border-x border-b border-gray-300 rounded-b-lg px-6 py-4">
-                    <div className="flex flex-row items-between justify-end gap-2">
+                    <div className="flex flex-row items-between justify-end gap-2 mb-[20px]">
                         <Button className="bg-blue-500 text-white px-4 py-5
                         font-bold rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
                             Update
@@ -33,6 +35,8 @@ export default function EventCard() {
                             Delete
                         </Button>
                     </div>
+                    <EventCardDetails />
+                    <DealedTable />
                 </div>
             )}
         </div>

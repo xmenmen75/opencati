@@ -56,13 +56,17 @@ export default function Sidebar() {
 
                     <hr className="border-t border-gray-200 my-2" />
 
-                    {sideBarItems.tools.map((item) => (
+                    {sideBarItems.tools.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                        <Link href={item.href} key={item.name}>
                         <li key={item.name}>
                             <a href={item.href} className="block px-3 py-2 rounded-lg hover:bg-blue-50 
                             text-gray-700 font-bold
                             text-xl"> {item.name} </a>
                         </li>
-                    ))}
+                        </Link>
+                    )})}
                 </ul>
             </nav>
         </aside>
