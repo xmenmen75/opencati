@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PackOpening } from '@/app/home/_components/PackOpening';
 import { TopBar } from '@/app/home/_components/TopBar';
 import { OwnedCardsDialog } from '@/app/home/_components/OwnedCardsDialog';
@@ -13,6 +13,7 @@ function Home() {
   const { walletState, user, isAuthenticated, connectWallet, disconnectWallet, isCorrectNetwork, authError, clearAuthError, authLoading } = useWallet();
   const [isCardsDialogOpen, setIsCardsDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [isPackAnimating, setIsPackAnimating] = useState(false);
   
   // Use React Query to fetch owned cards - only when user is authenticated
   const shouldFetchData = isAuthenticated && !!user;
@@ -24,6 +25,18 @@ function Home() {
   const { data: seasonRewards, isLoading: seasonRewardsLoading } = useSeasonRewards({
     enabled: shouldFetchData
   });
+  
+  // Keep stable data during pack animation
+  const [stableOwnedCardsData, setStableOwnedCardsData] = useState<typeof ownedCardsData>(undefined);
+  const [stableSeasonRewards, setStableSeasonRewards] = useState<typeof seasonRewards>(undefined);
+  
+  // Update stable data when not animating
+  useEffect(() => {
+    if (!isPackAnimating) {
+      if (ownedCardsData) setStableOwnedCardsData(ownedCardsData);
+      if (seasonRewards) setStableSeasonRewards(seasonRewards);
+    }
+  }, [ownedCardsData, seasonRewards, isPackAnimating]);
   
   const handleSettings = () => {
     setIsSettingsDialogOpen(true);
@@ -44,16 +57,19 @@ function Home() {
   // Check if wallet connection/auth is in progress
   const isLoading = walletState.isConnecting || authLoading;
 
-  // Get user's owned cards for display
-  const ownedCards = ownedCardsData || [];
+  // Get user's owned cards for display - use stable data during animation
+  const ownedCards = (isPackAnimating ? stableOwnedCardsData : ownedCardsData) || [];
+  
+  // Get season rewards data - use stable data during animation  
+  const currentSeasonRewards = isPackAnimating ? stableSeasonRewards : seasonRewards;
   
   // Get user's reward amount from season rewards data
-  const userRewardAmount = user && user.id && seasonRewards ? 
-    seasonRewards.seasonRewards.find(reward => reward.user.id === user.id!.toString())?.rewardAmount || '0' 
+  const userRewardAmount = user && user.id && currentSeasonRewards ? 
+    currentSeasonRewards.seasonRewards.find(reward => reward.user.id === user.id!.toString())?.rewardAmount || '0' 
     : undefined;
   
   // Get total pool amount from season rewards data
-  const totalPoolAmount = seasonRewards?.poolInfo.totalPool;
+  const totalPoolAmount = currentSeasonRewards?.poolInfo.totalPool;
   
   // Show loading page for initial authentication check
   if (authLoading && !walletState.isConnected) {
@@ -80,7 +96,10 @@ function Home() {
       {/* Main Content */}
       <div className="flex-1">
         {canAccessGame ? (
-          <PackOpening canOpenPacks={canOpenPacks || false} />
+          <PackOpening 
+            canOpenPacks={canOpenPacks || false} 
+            onAnimationStateChange={setIsPackAnimating}
+          />
         ) : (
           <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
             <div className="text-center space-y-4">

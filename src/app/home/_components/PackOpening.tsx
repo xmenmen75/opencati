@@ -9,9 +9,10 @@ import Image from 'next/image';
 interface PackOpeningProps {
   className?: string;
   canOpenPacks?: boolean;
+  onAnimationStateChange?: (isAnimating: boolean) => void;
 }
 
-export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPacks = true }) => {
+export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPacks = true, onAnimationStateChange }) => {
   const { isOpening, result, failureResult, openPack, resetResult, error } = usePackOpening();
   const [isAnimating, setIsAnimating] = useState(false);
   const [showResult, setShowResult] = useState(false);
@@ -27,6 +28,7 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
     // Use setTimeout to force a re-render and restart animation
     setTimeout(() => {
       setIsAnimating(true);
+      onAnimationStateChange?.(true); // Notify parent that animation started
     }, 10);
     
     // Start the pack opening API call
@@ -36,6 +38,7 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
     setTimeout(() => {
       setIsAnimating(false);
       setShowResult(true);
+      onAnimationStateChange?.(false); // Notify parent that animation ended
     }, 4000);
   };
 
@@ -44,8 +47,9 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
     if (!result && !failureResult && !error) {
       setShowResult(false);
       setIsAnimating(false);
+      onAnimationStateChange?.(false); // Notify parent that animation ended
     }
-  }, [result, failureResult, error]);
+  }, [result, failureResult, error, onAnimationStateChange]);
 
   return (
     <div className={cn(

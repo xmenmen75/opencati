@@ -3,6 +3,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Settings, Wallet, CreditCard, Trophy, Coins } from 'lucide-react';
 import type { User, WalletState } from '@/types/user';
 import DefaultCartiUserImage from '@/../public/images/default-cati-user.webp';
+import IconReward from '@/../public/images/icon-reward.png';
+import IconPoolAmt from '@/../public/images/icon-pool-amt.png';
 import Image from 'next/image';
 
 interface TopBarProps {
@@ -55,7 +57,8 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
             (walletState.isConnected && isAuthenticated) ? 'text-amber-400' : 'text-amber-400/50'
           }`}>
             <div className="flex items-center gap-1">
-              <Trophy className="h-4 w-4" />
+              {/* <Trophy className="h-4 w-4" /> */}
+              <Image src={IconPoolAmt} alt="Pool Amount" className="h-4 w-4" />
               <span>Pool Amt: {(walletState.isConnected && isAuthenticated) ? 
                 (totalPoolAmount ? `${parseInt(totalPoolAmount).toLocaleString()} CATI` : 'Loading...') : 
                 '---'
@@ -63,7 +66,8 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
             </div>
             <div className='h-5 w-0.5 bg-white/40'></div>
             <div className="flex items-center gap-1">
-              <Coins className="h-4 w-4" />
+              {/* <Coins className="h-4 w-4" /> */}
+              <Image src={IconReward} alt="Reward" className="h-4 w-4" />
               <span>Reward: {(walletState.isConnected && isAuthenticated) ? 
                 (userRewardAmount ? `${parseInt(userRewardAmount).toLocaleString()} CATI` : 'Loading...') : 
                 '---'
