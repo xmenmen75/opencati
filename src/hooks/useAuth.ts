@@ -11,6 +11,7 @@ const STORAGE_KEY = 'opencati_auth_token';
 export function useAuth() {
   const [localLoading, setLocalLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
   
   // Use React Query hooks
   const { data: authData, isLoading: isAuthLoading, error: authError } = useAuthMe();
@@ -26,6 +27,10 @@ export function useAuth() {
     null;
 
   const signInWithEthereum = async (walletAddress: string, provider: ethers.BrowserProvider) => {
+    // Create abort controller for this authentication attempt
+    const controller = new AbortController();
+    setAbortController(controller);
+    
     try {
       setLocalLoading(true);
       setLocalError(null);
@@ -36,6 +41,11 @@ export function useAuth() {
 
       // Wait a moment to ensure state is cleared
       await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Check if aborted
+      if (controller.signal.aborted) {
+        throw new Error('Authentication cancelled');
+      }
 
       // Step 1: Format the wallet address with EIP-55 checksum
       const checksummedAddress = ethers.getAddress(walletAddress.toLowerCase());
@@ -92,17 +102,43 @@ export function useAuth() {
       
       console.log('Generated SIWE message:', messageString);
 
+      // Check if aborted before getting signer
+      if (controller.signal.aborted) {
+        throw new Error('Authentication cancelled');
+      }
+
       // Step 5: Request signature from wallet
       let signature: string;
       try {
+        // Get signer and sign message with abort capability
         const signer = await provider.getSigner();
-        signature = await signer.signMessage(messageString);
+        console.log('Signer obtained, requesting signature...');
+        
+        // Check if aborted before signing
+        if (controller.signal.aborted) {
+          throw new Error('Authentication cancelled');
+        }
+        
+        // Add abort signal to the signing process
+        const signPromise = signer.signMessage(messageString);
+        const abortPromise = new Promise<never>((_, reject) => {
+          controller.signal.addEventListener('abort', () => {
+            reject(new Error('Authentication cancelled'));
+          });
+        });
+        
+        signature = await Promise.race([signPromise, abortPromise]);
         console.log('Signature received');
       } catch (signingError) {
-        if (signingError instanceof Error && signingError.message.includes('User denied')) {
-          throw new Error('User cancelled the signature request');
+        console.error('Signing error:', signingError);
+        if (signingError instanceof Error) {
+          if (signingError.message.includes('User denied') || signingError.message.includes('User rejected')) {
+            throw new Error('User cancelled the signature request');
+          } else if (signingError.message.includes('Authentication cancelled')) {
+            throw new Error('Authentication cancelled');
+          }
         }
-        throw new Error('Failed to sign authentication message');
+        throw new Error('Failed to sign authentication message. Please ensure MetaMask is unlocked and try again.');
       }
 
       // Step 6: Verify signature using React Query mutation
@@ -117,13 +153,20 @@ export function useAuth() {
       console.log('Authentication successful');
       toast.success('Successfully signed in with Ethereum!');
       setLocalLoading(false);
+      setAbortController(null);
       return { success: true, user: result.user };
     } catch (error: unknown) {
       console.error('SIWE authentication failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      setLocalError(errorMessage);
-      toast.error(`Authentication failed: ${errorMessage}`);
+      
+      // Don't show error message if it was cancelled
+      if (!errorMessage.includes('cancelled')) {
+        setLocalError(errorMessage);
+        toast.error(`Authentication failed: ${errorMessage}`);
+      }
+      
       setLocalLoading(false);
+      setAbortController(null);
       return { success: false, error: errorMessage };
     }
   };
@@ -157,6 +200,15 @@ export function useAuth() {
     authVerifyMutation.reset();
   }, [authVerifyMutation]);
 
+  const cancelAuthentication = useCallback(() => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setLocalLoading(false);
+      setLocalError(null);
+    }
+  }, [abortController]);
+
   const checkAuthStatus = useCallback(async () => {
     // This is now handled automatically by the useAuthMe query
     // Just trigger a refetch if needed
@@ -172,6 +224,7 @@ export function useAuth() {
     signInWithEthereum,
     logout,
     clearError,
+    cancelAuthentication,
     checkAuthStatus,
   };
 }

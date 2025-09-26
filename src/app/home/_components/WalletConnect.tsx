@@ -3,6 +3,7 @@ import { ethers } from 'ethers'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Wallet, ExternalLink, AlertCircle } from 'lucide-react'
+import { getMetaMaskErrorMessage } from '@/lib/wallet-utils'
 
 // BNB Smart Chain Testnet configuration
 const BSC_TESTNET = {
@@ -129,11 +130,11 @@ export function WalletConnect() {
       window.ethereum.on('accountsChanged', accountsChangedHandler.current)
       window.ethereum.on('chainChanged', chainChangedHandler.current)
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       setWalletState(prev => ({
         ...prev,
         isLoading: false,
-        error: error.message || 'Failed to connect wallet',
+        error: getMetaMaskErrorMessage(error),
       }))
     }
   }

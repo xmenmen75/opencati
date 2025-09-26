@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { useAuth } from '@/hooks/useAuth';
+import { getMetaMaskErrorMessage } from '@/lib/wallet-utils';
 import type { WalletState } from '@/types/user';
 
 // MetaMask Ethereum provider types
@@ -25,7 +26,7 @@ export function useWallet() {
     error: null,
   });
   const [isConnecting, setIsConnecting] = useState(false);
-  const { isAuthenticated, user, signInWithEthereum, logout, isLoading: authLoading, error: authError, clearError: clearAuthError } = useAuth();
+  const { isAuthenticated, user, signInWithEthereum, logout, isLoading: authLoading, error: authError, clearError: clearAuthError, cancelAuthentication } = useAuth();
 
   // Check for existing connection on mount
   useEffect(() => {
@@ -76,6 +77,11 @@ export function useWallet() {
       }
 
       const account = accounts[0];
+      
+      if (!window.ethereum) {
+        throw new Error('MetaMask is no longer available');
+      }
+      
       const provider = new ethers.BrowserProvider(window.ethereum);
 
       // Update wallet state
@@ -94,7 +100,7 @@ export function useWallet() {
       }
 
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to connect wallet';
+      const errorMessage = getMetaMaskErrorMessage(error);
       setWalletState({
         isConnected: false,
         isConnecting: false,
@@ -155,5 +161,6 @@ export function useWallet() {
     disconnectWallet,
     isCorrectNetwork,
     clearAuthError,
+    cancelAuthentication,
   };
 }
