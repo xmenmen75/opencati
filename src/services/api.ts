@@ -189,14 +189,14 @@ export const seasonsApi = {
   /**
    * Get active seasons
    */
-  getActiveSeasons: async (): Promise<unknown[]> => {
+  getActiveSeasons: async (): Promise<import('@/types/card').Season[]> => {
     return apiClient.get('/api/seasons/active');
   },
 
   /**
    * Get season details
    */
-  getSeason: async (seasonId: string): Promise<unknown> => {
+  getSeason: async (seasonId: string): Promise<import('@/types/card').Season> => {
     return apiClient.get(`/api/seasons/${seasonId}`);
   },
 

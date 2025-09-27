@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
           id: userCard.season.id.toString(),
           name: userCard.season.name,
           slogan: userCard.season.slogan,
+          status: userCard.season.status,
         },
       };
     });

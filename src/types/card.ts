@@ -21,7 +21,20 @@ export interface OwnedCard {
     id: string;
     name: string;
     slogan: string;
+    status?: string;
   };
+}
+
+export interface Season {
+  id: string;
+  name: string;
+  slogan: string;
+  bidPoolAmount: string;
+  additionalTotalPool: string;
+  startDate: string;
+  endDate: string;
+  status: 'UPCOMING' | 'ACTIVE' | 'ENDED' | 'DISTRIBUTED';
+  createdAt: string;
 }
 
 export const CardRank = {

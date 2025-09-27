@@ -1,0 +1,66 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { seasonId: string } }
+) {
+  try {
+    const seasonId = BigInt(params.seasonId);
+
+    const season = await prisma.season.findUnique({
+      where: {
+        id: seasonId,
+      },
+      include: {
+        seasonCards: {
+          include: {
+            card: true,
+          },
+        },
+      },
+    });
+
+    if (!season) {
+      return NextResponse.json(
+        { error: 'Season not found' },
+        { status: 404 }
+      );
+    }
+
+    const response = {
+      id: season.id.toString(),
+      name: season.name,
+      slogan: season.slogan,
+      bidPoolAmount: season.bidPoolAmount.toString(),
+      additionalTotalPool: season.additionalTotalPool.toString(),
+      startDate: season.startDate.toISOString(),
+      endDate: season.endDate.toISOString(),
+      status: season.status,
+      createdAt: season.createdAt.toISOString(),
+      cards: season.seasonCards.map(sc => ({
+        id: sc.id.toString(),
+        cardId: sc.cardId.toString(),
+        poolSharePercentage: sc.poolSharePercentage.toString(),
+        dropProbability: sc.dropProbability.toString(),
+        isActive: sc.isActive,
+        card: {
+          id: sc.card.id.toString(),
+          rank: sc.card.rank,
+          name: sc.card.name,
+          imageUrl: sc.card.imageUrl,
+          rarityColor: sc.card.rarityColor,
+          designer: sc.card.designer,
+        },
+      })),
+    };
+
+    return NextResponse.json(response);
+  } catch (error) {
+    console.error('Error fetching season:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
