@@ -48,30 +48,68 @@ export async function GET() {
       },
     });
 
-    // Calculate pool information
+    // Calculate pool information using new dual-percentage system
     const totalSpent = userCards.reduce((sum, userCard) => sum + userCard.catiSpent, BigInt(0));
-    const totalPool = totalSpent + activeSeason.additionalTotalPool;
+    const totalSponsorPool = activeSeason.additionalTotalPool;
+    const totalPool = totalSpent + totalSponsorPool;
 
-    const rankPools = {
-      'A': (totalPool * BigInt(4)) / BigInt(100),   // 4%
-      'AA': (totalPool * BigInt(10)) / BigInt(100), // 10%
-      'S': (totalPool * BigInt(12)) / BigInt(100),  // 12%
-      'SS': (totalPool * BigInt(70)) / BigInt(100), // 70%
-    };
+    // Get season card data to understand reward distribution
+    const seasonCards = await prisma.seasonCard.findMany({
+      where: {
+        seasonId: activeSeason.id,
+        isActive: true,
+      },
+      include: {
+        card: true,
+      },
+    });
 
-    // Count cards by rank
-    const rankCounts = userCards.reduce((counts, userCard) => {
-      const rank = userCard.card.rank;
-      counts[rank] = (counts[rank] || 0) + 1;
-      return counts;
-    }, {} as Record<string, number>);
+    // Create a map for quick lookups
+    const seasonCardMap = new Map();
+    seasonCards.forEach(sc => {
+      seasonCardMap.set(sc.cardId, sc);
+    });
 
-    // Calculate reward per card for each rank
-    const rewardPerCard = Object.entries(rankPools).reduce((rewards, [rank, pool]) => {
-      const count = rankCounts[rank] || 0;
-      rewards[rank] = count > 0 ? pool / BigInt(count) : BigInt(0);
-      return rewards;
-    }, {} as Record<string, bigint>);
+    // Calculate card rewards based on new system
+    const cardRewardInfo: Array<{
+      cardId: number;
+      rank: string;
+      userBidReward: bigint;
+      sponsorReward: bigint;
+      totalReward: bigint;
+      count: number;
+    }> = [];
+
+    // Group cards by type and calculate their rewards
+    const cardGroups = userCards.reduce((groups, userCard) => {
+      const cardId = userCard.cardId;
+      if (!groups[cardId]) {
+        const seasonCard = seasonCardMap.get(cardId);
+        if (seasonCard) {
+          const userBidPercentage = Number(seasonCard.userBidPoolPercentage) / 100;
+          const sponsorPercentage = Number(seasonCard.sponsorPoolPercentage) / 100;
+          const userBidReward = BigInt(Math.floor(Number(totalSpent) * userBidPercentage));
+          const sponsorReward = BigInt(Math.floor(Number(totalSponsorPool) * sponsorPercentage));
+          
+          groups[cardId] = {
+            cardId,
+            rank: userCard.card.rank,
+            userBidReward,
+            sponsorReward,
+            totalReward: userBidReward + sponsorReward,
+            count: 0,
+          };
+        }
+      }
+      if (groups[cardId]) {
+        groups[cardId].count++;
+      }
+      return groups;
+    }, {} as Record<number, any>);
+
+    Object.values(cardGroups).forEach((group: any) => {
+      cardRewardInfo.push(group);
+    });
 
     // Group user cards by user
     const userCardsByUser = userCards.reduce((groups, userCard) => {
@@ -98,21 +136,22 @@ export async function GET() {
         id: activeSeason.id.toString(),
         name: activeSeason.name,
         slogan: activeSeason.slogan,
-        sponsorAmount: activeSeason.additionalTotalPool.toString(),
+        sponsorAmount: totalSponsorPool.toString(),
       },
       poolInfo: {
         totalPool: totalPool.toString(),
         totalSpent: totalSpent.toString(),
-        sponsorAmount: activeSeason.additionalTotalPool.toString(),
-        rankPools: Object.entries(rankPools).reduce((acc, [rank, amount]) => {
-          acc[rank] = amount.toString();
-          return acc;
-        }, {} as Record<string, string>),
-        rankCounts,
-        rewardPerCard: Object.entries(rewardPerCard).reduce((acc, [rank, amount]) => {
-          acc[rank] = amount.toString();
-          return acc;
-        }, {} as Record<string, string>),
+        totalSponsorPool: totalSponsorPool.toString(),
+        userBidRewards: cardRewardInfo.reduce((sum, card) => sum + card.userBidReward, BigInt(0)).toString(),
+        sponsorRewards: cardRewardInfo.reduce((sum, card) => sum + card.sponsorReward, BigInt(0)).toString(),
+        cardRewards: cardRewardInfo.map(card => ({
+          cardId: card.cardId.toString(),
+          rank: card.rank,
+          userBidReward: card.userBidReward.toString(),
+          sponsorReward: card.sponsorReward.toString(),
+          totalReward: card.totalReward.toString(),
+          count: card.count,
+        })),
       },
       userSummary: Object.values(userCardsByUser).map((userData: any) => ({
         user: {

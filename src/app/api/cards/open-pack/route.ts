@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyJWT } from '@/lib/auth';
 import { selectRandomCard, type SeasonCardWithProbability } from '@/lib/card-selector';
-import { calculateSeasonRewards } from '@/lib/reward-calculator';
+import { calculateSeasonRewardsWithSeasonCards } from '@/lib/reward-calculator';
 
 // CATI cost per pack opening (reasonable amount)
 const PACK_COST = BigInt('500'); // 500 CATI
@@ -29,16 +29,26 @@ async function recalculateSeasonRewards(seasonId: bigint, tx: Omit<typeof prisma
     },
   });
 
-  // Use extracted calculation logic
-  const calculationResult = calculateSeasonRewards(userCards, season);
+  // Calculate total spent to update bidPoolAmount
+  const totalSpent = userCards.reduce((sum, userCard) => sum + userCard.catiSpent, BigInt(0));
 
-  // Update season bid pool amount
+  // Update season bid pool amount first
   await tx.season.update({
     where: { id: seasonId },
     data: {
-      bidPoolAmount: calculationResult.poolInfo.totalSpent,
+      bidPoolAmount: totalSpent,
     },
   });
+
+  // Get updated season data
+  const updatedSeason = await tx.season.findUnique({
+    where: { id: seasonId },
+  });
+
+  if (!updatedSeason) return;
+
+  // Use new calculation logic with season cards
+  const calculationResult = await calculateSeasonRewardsWithSeasonCards(userCards, updatedSeason, tx);
 
   // Update all user cards with new rewards
   for (const userCardUpdate of calculationResult.userCards) {
@@ -171,7 +181,7 @@ export async function POST(request: NextRequest) {
       imageUrl: sc.card.imageUrl,
       rarityColor: sc.card.rarityColor,
       designer: sc.card.designer,
-      poolSharePercentage: sc.poolSharePercentage,
+      poolSharePercentage: sc.userBidPoolPercentage, // Use userBidPoolPercentage for backward compatibility with card selector
       dropProbability: sc.dropProbability,
       seasonCardId: sc.id,
     }));

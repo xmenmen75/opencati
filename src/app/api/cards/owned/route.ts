@@ -81,7 +81,9 @@ export async function GET(request: NextRequest) {
         rank: userCard.card.rank,
         name: userCard.card.name,
         image: userCard.card.imageUrl,
-        poolSharePercentage: seasonCard?.poolSharePercentage?.toString() || '0',
+        poolSharePercentage: seasonCard?.userBidPoolPercentage?.toString() || '0', // Backward compatibility
+        userBidPoolPercentage: seasonCard?.userBidPoolPercentage?.toString() || '0',
+        sponsorPoolPercentage: seasonCard?.sponsorPoolPercentage?.toString() || '0',
         rarityColor: userCard.card.rarityColor,
         designer: userCard.card.designer,
         catiSpent: userCard.catiSpent.toString(),

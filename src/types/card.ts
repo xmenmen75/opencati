@@ -11,7 +11,9 @@ export interface OwnedCard {
   rank: CardRank;
   name: string;
   image?: string;
-  poolSharePercentage: string;
+  poolSharePercentage: string; // Kept for backward compatibility (mapped to userBidPoolPercentage)
+  userBidPoolPercentage: string; // New: percentage for user bid amount
+  sponsorPoolPercentage: string; // New: percentage for sponsor amount
   rarityColor: string;
   designer: string;
   catiSpent: string;
@@ -66,7 +68,9 @@ export interface PackOpenResponse {
     imageUrl: string;
     rarityColor: string;
     designer: string;
-    poolSharePercentage: string;
+    poolSharePercentage: string; // Backward compatibility
+    userBidPoolPercentage: string; // New field
+    sponsorPoolPercentage: string; // New field
     catiSpent: string;
     catiReward: string;
     acquiredAt: string;

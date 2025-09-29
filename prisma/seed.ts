@@ -3,10 +3,9 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const CARDS_DATA = [
-  // A Rank Cards (2 cards) - 60% total probability, 30% each
+  // A Rank Cards (2 cards)
   {
     rank: 'A',
-    poolSharePercentage: 30.0, // 30% probability
     name: 'Fire Dragon',
     imageUrl: '/images/cards/fire-dragon.png',
     rarityColor: '#3B82F6',
@@ -14,16 +13,14 @@ const CARDS_DATA = [
   },
   {
     rank: 'A',
-    poolSharePercentage: 30.0, // 30% probability
     name: 'Water Spirit',
     imageUrl: '/images/cards/water-spirit.png',
     rarityColor: '#3B82F6',
     designer: 'OpenCATI Studio',
   },
-  // AA Rank Cards (2 cards) - 25% total probability, 12.5% each
+  // AA Rank Cards (2 cards)
   {
     rank: 'AA',
-    poolSharePercentage: 12.5, // 12.5% probability
     name: 'Lightning Phoenix',
     imageUrl: '/images/cards/lightning-phoenix.png',
     rarityColor: '#8B5CF6',
@@ -31,29 +28,58 @@ const CARDS_DATA = [
   },
   {
     rank: 'AA',
-    poolSharePercentage: 12.5, // 12.5% probability
     name: 'Ice Queen',
     imageUrl: '/images/cards/ice-queen.png',
     rarityColor: '#8B5CF6',
     designer: 'OpenCATI Studio',
   },
-  // S Rank Cards (1 card) - 13% probability
+  // S Rank Cards (1 card)
   {
     rank: 'S',
-    poolSharePercentage: 13.0, // 13% probability
     name: 'Ancient Titan',
     imageUrl: '/images/cards/ancient-titan.png',
     rarityColor: '#EAB308',
     designer: 'OpenCATI Studio',
   },
-  // SS Rank Cards (1 card) - 2% probability
+  // SS Rank Cards (1 card)
   {
     rank: 'SS',
-    poolSharePercentage: 2.0, // 2% probability
     name: 'Legendary Beast',
     imageUrl: '/images/cards/legendary-beast.png',
     rarityColor: '#EF4444',
     designer: 'OpenCATI Studio',
+  },
+];
+
+// Season card configuration with dual percentages and drop probabilities
+const SEASON_CARD_CONFIG = [
+  // A Rank Cards - Common rewards, higher drop probability
+  {
+    rank: 'A',
+    userBidPoolPercentage: 3.0,    // 3% of user bid pool per A card (2 cards = 6% total)
+    sponsorPoolPercentage: 2.5,    // 2.5% of sponsor pool per A card (2 cards = 5% total)
+    dropProbability: 30.0,         // 30% drop chance for each A card
+  },
+  // AA Rank Cards - Uncommon rewards, moderate drop probability
+  {
+    rank: 'AA',
+    userBidPoolPercentage: 8.0,    // 8% of user bid pool per AA card (2 cards = 16% total)
+    sponsorPoolPercentage: 5.0,    // 5% of sponsor pool per AA card (2 cards = 10% total)
+    dropProbability: 12.5,         // 12.5% drop chance for each AA card
+  },
+  // S Rank Cards - Rare rewards, low drop probability
+  {
+    rank: 'S',
+    userBidPoolPercentage: 15.0,   // 15% of user bid pool per S card (1 card = 15% total)
+    sponsorPoolPercentage: 12.0,   // 12% of sponsor pool per S card (1 card = 12% total)
+    dropProbability: 13.0,         // 13% drop chance
+  },
+  // SS Rank Cards - Ultra rare rewards, very low drop probability
+  {
+    rank: 'SS',
+    userBidPoolPercentage: 45.0,   // 45% of user bid pool per SS card (1 card = 45% total)
+    sponsorPoolPercentage: 40.0,   // 40% of sponsor pool per SS card (1 card = 40% total)
+    dropProbability: 2.0,          // 2% drop chance
   },
 ];
 
@@ -65,19 +91,22 @@ async function main() {
     console.log('🧹 Cleaning up existing data...');
     await prisma.userCard.deleteMany();
     await prisma.seasonReward.deleteMany();
+    await prisma.seasonCard.deleteMany();
     await prisma.card.deleteMany();
     await prisma.season.deleteMany();
 
     // Seed cards
     console.log('🃏 Seeding cards...');
+    const createdCards: any[] = [];
     for (const cardData of CARDS_DATA) {
-      await prisma.card.create({
+      const card = await prisma.card.create({
         data: cardData,
       });
+      createdCards.push(card);
     }
-    console.log(`✅ Created ${CARDS_DATA.length} cards with proper probabilities:`);
-    CARDS_DATA.forEach(card => {
-      console.log(`   ${card.rank} - ${card.name}: ${card.poolSharePercentage}%`);
+    console.log(`✅ Created ${CARDS_DATA.length} cards:`);
+    createdCards.forEach(card => {
+      console.log(`   ${card.rank} - ${card.name}`);
     });
 
     // Seed season
@@ -86,14 +115,40 @@ async function main() {
       data: {
         name: 'Season 1',
         slogan: 'Big Summer Event Season 1',
-        bidPoolAmount: BigInt('5000'), // 5000 CATI
-        additionalTotalPool: BigInt('2500'), // 2500 CATI
+        bidPoolAmount: BigInt('0'), // Will be calculated from user spending
+        additionalTotalPool: BigInt('100000'), // 100,000 CATI sponsor pool
         startDate: new Date('2024-09-01'),
         endDate: new Date('2024-12-31'),
         status: 'ACTIVE',
       },
     });
     console.log(`✅ Created season: ${season.name}`);
+
+    // Seed season cards with dual percentages
+    console.log('🎯 Seeding season cards with reward configurations...');
+    for (const card of createdCards) {
+      const config = SEASON_CARD_CONFIG.find(c => c.rank === card.rank);
+      if (config) {
+        await prisma.seasonCard.create({
+          data: {
+            seasonId: season.id,
+            cardId: card.id,
+            userBidPoolPercentage: config.userBidPoolPercentage,
+            sponsorPoolPercentage: config.sponsorPoolPercentage,
+            dropProbability: config.dropProbability / 100, // Convert percentage to decimal
+            isActive: true,
+          },
+        });
+      }
+    }
+    console.log(`✅ Created season cards with reward percentages:`);
+    SEASON_CARD_CONFIG.forEach(config => {
+      const cardsOfRank = createdCards.filter(c => c.rank === config.rank);
+      console.log(`   ${config.rank} Rank (${cardsOfRank.length} cards):`);
+      console.log(`     - User Bid Pool: ${config.userBidPoolPercentage}% each`);
+      console.log(`     - Sponsor Pool: ${config.sponsorPoolPercentage}% each`);
+      console.log(`     - Drop Probability: ${config.dropProbability}% each`);
+    });
 
     // Update existing users with initial CATI balance if any exist
     const existingUsers = await prisma.user.findMany();
@@ -111,9 +166,19 @@ async function main() {
     }
 
     console.log('🎉 Database seeding completed successfully!');
-    console.log('📊 Total probability distribution:');
-    const totalProb = CARDS_DATA.reduce((sum, card) => sum + card.poolSharePercentage, 0);
-    console.log(`   Total: ${totalProb}% (should be 100%)`);
+    console.log('📊 Drop probability distribution:');
+    const totalDropProb = SEASON_CARD_CONFIG.reduce((sum, config) => {
+      const cardsOfRank = createdCards.filter(c => c.rank === config.rank);
+      return sum + (config.dropProbability * cardsOfRank.length);
+    }, 0);
+    console.log(`   Total drop probability: ${totalDropProb}%`);
+    console.log('💰 Reward distribution per season:');
+    console.log(`   Sponsor Pool: ${season.additionalTotalPool} CATI`);
+    const totalSponsorAllocation = SEASON_CARD_CONFIG.reduce((sum, config) => {
+      const cardsOfRank = createdCards.filter(c => c.rank === config.rank);
+      return sum + (config.sponsorPoolPercentage * cardsOfRank.length);
+    }, 0);
+    console.log(`   Total sponsor allocation: ${totalSponsorAllocation}%`);
   } catch (error) {
     console.error('❌ Error seeding database:', error);
     throw error;

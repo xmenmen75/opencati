@@ -67,13 +67,14 @@ model Season {
 }
 
 model SeasonCard {
-  id                   BigInt  @id @default(autoincrement())
-  seasonId             BigInt  @map("season_id")
-  cardId               Int     @map("card_id")
-  poolSharePercentage  Decimal @map("pool_share_percentage") @db.Decimal(5, 2)
-  dropProbability      Decimal @map("drop_probability") @db.Decimal(8, 5) // Probability of getting this card in pack opening
-  isActive             Boolean @default(true) @map("is_active") // Whether this card is currently droppable
-  createdAt            DateTime @default(now()) @map("created_at")
+  id                          BigInt  @id @default(autoincrement())
+  seasonId                    BigInt  @map("season_id")
+  cardId                      Int     @map("card_id")
+  userBidPoolPercentage       Decimal @map("user_bid_pool_percentage") @db.Decimal(5, 2) // Percentage for user bid amount
+  sponsorPoolPercentage       Decimal @map("sponsor_pool_percentage") @db.Decimal(5, 2) // Percentage for sponsor amount
+  dropProbability             Decimal @map("drop_probability") @db.Decimal(8, 5) // Probability of getting this card in pack opening
+  isActive                    Boolean @default(true) @map("is_active") // Whether this card is currently droppable
+  createdAt                   DateTime @default(now()) @map("created_at")
 
   // Relations
   season Season @relation(fields: [seasonId], references: [id])
@@ -89,7 +90,7 @@ model UserCard {
   cardId     Int      @map("card_id")
   seasonId   BigInt   @map("season_id")
   catiSpent  BigInt   @map("cati_spent")
-  catiReward BigInt   @map("cati_reward") // Amount of CATI reward this card
+  catiReward BigInt   @map("cati_reward") // Calculated as: userBidAmount * userBidPoolPercentage + sponsorAmount * sponsorPoolPercentage
   acquiredAt DateTime @default(now()) @map("acquired_at")
 
   // Relations
