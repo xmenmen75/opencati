@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -95,6 +96,22 @@ async function main() {
     await prisma.card.deleteMany();
     await prisma.season.deleteMany();
 
+    // Seed admin
+    const email = process.env.ADMIN_EMAIL;
+    const password = process.env.ADMIN_PASSWORD;
+    if(email && password){
+      console.log('🃏 Seeding admin...');
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const admin = await prisma.admin.create({
+        data: {
+          email: email,
+          password: hashedPassword,
+        },
+      });
+      if(admin){
+        console.log('✅ Admin created successfully');
+      }
+    }
     // Seed cards
     console.log('🃏 Seeding cards...');
     const createdCards: any[] = [];

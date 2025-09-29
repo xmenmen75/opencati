@@ -10,6 +10,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Admin {
+  id          Int   @id @default(autoincrement())
+  email       String @unique @db.VarChar(100)
+  password    String @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  @@map("admins")
+}
+
 model User {
   id                 BigInt   @id @default(autoincrement())
   walletAddress      String   @unique @map("wallet_address") @db.VarChar(255)
