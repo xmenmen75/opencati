@@ -1,4 +1,6 @@
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PlusIcon } from "lucide-react";
 
 function CreateEventForm() {
     return (
@@ -230,8 +232,112 @@ function CreateEventForm() {
                         </div>
                     </div>
                 </div>
+                <div className="w-full mt-8">
+                    <label htmlFor="openingMovie" 
+                    className="text-md font-semibold">
+                        Opening Movie
+                    </label>
+                    <label className="block">
+                        <div className="w-full h-40 flex flex-col items-center justify-center border-2 border-dotted border-gray-400 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                            <span className="text-2xl mb-2">
+                                ⬆️
+                            </span>
+                            <span className="text-md font-medium text-gray-700 mb-2">
+                                Click to upload opening movie
+                            </span>
+                            <span className="text-xs text-gray-500">MP4, MOV up to 50MB</span>
+                        </div>
+                        <input type="file" accept="video/mp4,video/quicktime" className="hidden" />
+                    </label>
+                </div>
+                <div>
+                    <h3 className="text-md font-semibold">
+                        Added cards
+                    </h3>
 
-            </form>
+                    <table className="min-w-full divide-y divide-gray-200 mt-2">
+                        <thead>
+                            <tr className="border-b border-gray-300">
+                                <th className="text-left text-sm pb-2">Card No</th>
+                                <th className="text-left text-sm pb-2">Avatar</th>
+                                <th className="text-left text-sm pb-2">Card Name</th>
+                                <th className="text-left text-sm pb-2">Card Rank</th>
+                                <th className="text-left text-sm pb-2">Win Rate</th>
+                                <th className="text-left text-sm pb-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr className="border-b border-gray-200">
+                                <td className="py-2">1</td>
+                                <td className="py-2">
+                                    {/* avatar */}
+                                </td>
+                                <td className="py-2">Black Soldier</td>
+                                <td className="py-2">
+                                    <p className="w-fit text-center rounded-sm p-1
+                                    bg-blue-200 text-blue-800">SS</p>
+                                </td>
+                                <td className="py-2">
+                                    <Input 
+                                        type="number"
+                                        id="winRate"
+                                        name="winRate"
+                                        min={0}
+                                        className="w-20 focus:ring-3 focus:ring-gray-300"
+                                    />
+                                </td>
+                                <td className="py-2">
+                                    <Button
+                                    variant={'outline'}
+                                    className="px-4 py-2 rounded-lg cursor-pointer">
+                                        Delete
+                                    </Button
+                                    >
+                                </td>
+                            </tr>
+                            <tr className="border-b border-gray-200">
+                                <td className="py-2">1</td>
+                                <td className="py-2">
+                                    {/* avatar */}
+                                </td>
+                                <td className="py-2">Black Soldier</td>
+                                <td className="py-2">
+                                    <p className="w-fit text-center rounded-sm p-1
+                                    bg-blue-200 text-blue-800">SS</p>
+                                </td>
+                                <td className="py-2">
+                                    <Input 
+                                        type="number"
+                                        id="winRate"
+                                        name="winRate"
+                                        min={0}
+                                        className="w-20 focus:ring-3 focus:ring-gray-300"
+                                    />
+                                </td>
+                                <td className="py-2">
+                                    <Button
+                                    variant={'outline'}
+                                    className="px-4 py-2 rounded-lg cursor-pointer">
+                                        Delete
+                                    </Button
+                                    >
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div className="w-full flex items-center justify-center">
+                        <Button variant="outline" className="w-12 mt-4 cursor-pointer">
+                            <PlusIcon />
+                        </Button>
+                    </div>
+                </div>
+                <div className="w-full mt-2 flex items-end justify-end">
+                    <Button 
+                    className="px-4 py-3 cursor-pointer">
+                        SAVE
+                    </Button>
+                </div>
+        </form>
         </div>
         </div>
     )
