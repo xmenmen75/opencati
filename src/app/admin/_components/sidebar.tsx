@@ -60,11 +60,11 @@ export default function Sidebar() {
                         const isActive = pathname === item.href;
                         return (
                         <Link href={item.href} key={item.name}>
-                        <li key={item.name}>
-                            <a href={item.href} className="block px-3 py-2 rounded-lg hover:bg-blue-50 
-                            text-gray-700 font-bold
-                            text-xl"> {item.name} </a>
-                        </li>
+                            <li key={item.name}>
+                                <p className={`block px-3 py-2 rounded-lg ${!isActive && "hover:bg-blue-50"} 
+                                ${isActive ? "text-white" : "text-gray-700"} font-bold ${isActive ? 'bg-blue-500' : ''}
+                                text-xl`}> {item.name} </p>
+                            </li>
                         </Link>
                     )})}
                 </ul>

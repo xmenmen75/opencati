@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import React from "react";
 
@@ -12,7 +13,7 @@ export default function CreateCardForm() {
           <div className="grid grid-cols-2 gap-6">
             <div>
               <label htmlFor="cardName" className="block text-sm font-medium text-gray-700 mb-1">Card Name</label>
-              <input
+              <Input
                 type="text"
                 id="cardName"
                 name="cardName"
@@ -38,7 +39,7 @@ export default function CreateCardForm() {
             </div>
             <div>
               <label htmlFor="attack" className="block text-sm font-medium text-gray-700 mb-1">Attack (NI)</label>
-              <input
+              <Input
                 type="number"
                 id="attack"
                 name="attack"
@@ -48,7 +49,7 @@ export default function CreateCardForm() {
             </div>
             <div>
               <label htmlFor="hp" className="block text-sm font-medium text-gray-700 mb-1">HP</label>
-              <input
+              <Input
                 type="number"
                 id="hp"
                 name="hp"
@@ -58,7 +59,7 @@ export default function CreateCardForm() {
             </div>
             <div>
               <label htmlFor="selfHeal" className="block text-sm font-medium text-gray-700 mb-1">Self-Heal</label>
-              <input
+              <Input
                 type="number"
                 id="selfHeal"
                 name="selfHeal"
@@ -68,7 +69,7 @@ export default function CreateCardForm() {
             </div>
             <div>
               <label htmlFor="areaAttack" className="block text-sm font-medium text-gray-700 mb-1">Area Attack</label>
-              <input
+              <Input
                 type="number"
                 id="areaAttack"
                 name="areaAttack"
@@ -78,7 +79,7 @@ export default function CreateCardForm() {
             </div>
             <div>
               <label htmlFor="speed" className="block text-sm font-medium text-gray-700 mb-1">Speed</label>
-              <input
+              <Input
                 type="number"
                 id="speed"
                 name="speed"
@@ -88,7 +89,7 @@ export default function CreateCardForm() {
             </div>
             <div>
               <label htmlFor="cost" className="block text-sm font-medium text-gray-700 mb-1">Cost</label>
-              <input
+              <Input
                 type="number"
                 id="cost"
                 name="cost"
