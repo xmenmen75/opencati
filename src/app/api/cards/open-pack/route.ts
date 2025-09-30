@@ -284,6 +284,7 @@ export async function POST(request: NextRequest) {
             slogan: activeSeason.slogan,
           },
         },
+        userCardId: result.userCard!.id.toString(),
         newBalance: (user.catiBalance - PACK_COST).toString(),
       });
     } else {

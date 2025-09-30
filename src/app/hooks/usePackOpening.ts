@@ -42,9 +42,12 @@ export const usePackOpening = (): UsePackOpeningState => {
           id: packResult.card.id,
           rank: packResult.card.rank as CardRank,
           name: packResult.card.name,
-          image: packResult.card.image, // OwnedCard has image property
+          image: (packResult.card as any).imageUrl, 
         };
-        setResult({ card });
+        setResult({ 
+          card,
+          userCardId: (packResult as any).userCardId || packResult.card.id // fallback to card.id if userCardId not available
+        });
       } else if (packResult && !packResult.success) {
         // Pack failure - no card won but CATI was spent
         setFailureResult({

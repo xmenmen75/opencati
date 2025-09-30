@@ -57,6 +57,7 @@ export interface CardProbability {
 
 export interface PackOpeningResult {
   card: Card;
+  userCardId: string;
 }
 
 export interface PackOpenResponse {
@@ -80,6 +81,7 @@ export interface PackOpenResponse {
       slogan: string;
     };
   };
+  userCardId?: string;
   failureReason?: string;
   message?: string;
   newBalance: string;

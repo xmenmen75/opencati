@@ -47,6 +47,20 @@ model Card {
   @@map("cards")
 }
 
+model CardBroadcast {
+  id              Int       @id @default(autoincrement())
+  user_card_id    BigInt    @map("user_card_id")
+  content         String    @db.VarChar(255)
+  tip_cati        Int       @default(0)
+  only_celebrate  Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  userCard UserCard @relation(fields: [user_card_id], references: [id])
+
+  @@map("card_broadcasts")
+}
+
 model Season {
   id                    BigInt   @id @default(autoincrement())
   name                  String   @db.VarChar(100)
@@ -97,6 +111,7 @@ model UserCard {
   user   User   @relation(fields: [userId], references: [id])
   card   Card   @relation(fields: [cardId], references: [id])
   season Season @relation(fields: [seasonId], references: [id])
+  broadcasts CardBroadcast[]
 
   @@map("user_cards")
 }

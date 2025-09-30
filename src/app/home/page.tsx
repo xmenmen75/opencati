@@ -6,6 +6,7 @@ import { TopBar } from '@/app/home/_components/TopBar';
 import { OwnedCardsDialog } from '@/app/home/_components/OwnedCardsDialog';
 import { SettingsDialog } from '@/app/home/_components/SettingsDialog';
 import { CatiManagementDialog } from '@/app/home/_components/CatiManagementDialog';
+import BroadcastChannel from '@/app/home/_components/BroadcastChannel';
 import { LoadingPage } from '@/components/ui/Loading';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '../hooks/useWallet';
@@ -211,7 +212,11 @@ function Home() {
             </div>
           </div>
         )}
+        
       </div>
+
+      {/* Broadcast Channel - Fixed at bottom */}
+      <BroadcastChannel className="fixed bottom-0 left-0 right-0 z-10" />
 
       {/* Owned Cards Dialog */}
       <OwnedCardsDialog

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CardDisplay } from '@/app/home/_components/CardDisplay';
+import { AcquiredCardDialog } from '@/app/home/_components/AcquiredCardDialog';
 import { cn } from '@/lib/utils';
 import { usePackOpening } from '@/app/hooks/usePackOpening';
 import CardPickerImage from '@/../public/images/card-picker.png';
@@ -16,6 +17,8 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
   const { isOpening, result, failureResult, openPack, resetResult, error } = usePackOpening();
   const [isAnimating, setIsAnimating] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [showAcquiredDialog, setShowAcquiredDialog] = useState(false);
+  const [selectedUserCardId, setSelectedUserCardId] = useState<string>('');
 
   // Handle pack opening with animation
   const handleCardClick = async () => {
@@ -79,13 +82,28 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
 
             {/* Result overlay - Show actual card instead of message */}
             {showResult && result && (
-              <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 z-10">
-                <CardDisplay
-                  card={result.card}
-                  className="transform scale-75"
-                />
-              </div>
+              <CardDisplay
+                card={result.card}
+                className="transform scale-75"
+                isOpen={showResult}
+                onClose={() => {
+                  setShowResult(false);
+                  resetResult();
+                }}
+                onCardClick={(userCardId) => {
+                  setSelectedUserCardId(userCardId);
+                  setShowAcquiredDialog(true);
+                }}
+                userCardId={result.userCardId}
+              />
             )}
+
+            {/* Acquired Card Dialog */}
+            <AcquiredCardDialog 
+              isOpen={showAcquiredDialog}
+              onClose={() => setShowAcquiredDialog(false)}
+              userCardId={selectedUserCardId || result?.userCardId || ''}
+            />
 
             {/* Failure and error overlays */}
             {showResult && (failureResult || error) && (
