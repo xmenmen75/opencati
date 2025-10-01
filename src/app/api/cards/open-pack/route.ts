@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyJWT } from '@/lib/auth';
 import { selectRandomCard, type SeasonCardWithProbability } from '@/lib/card-selector';
-import { calculateSeasonRewardsWithSeasonCards } from '@/lib/reward-calculator';
 
 // CATI cost per pack opening (reasonable amount)
 const PACK_COST = BigInt('500'); // 500 CATI
@@ -12,69 +11,8 @@ function calculateCatiSpent(): bigint {
   return PACK_COST; // 500 CATI for all ranks
 }
 
-async function recalculateSeasonRewards(seasonId: bigint, tx: Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">) {
-  // Get current season
-  const season = await tx.season.findUnique({
-    where: { id: seasonId },
-  });
-
-  if (!season) return;
-
-  // Get all user cards for this season
-  const userCards = await tx.userCard.findMany({
-    where: { seasonId },
-    include: {
-      card: true,
-      user: true,
-    },
-  });
-
-  // Note: bidPoolAmount is now updated directly in the main transaction,
-  // so we don't need to recalculate it here. Just use the current season data.
-
-  // Use new calculation logic with season cards
-  const calculationResult = await calculateSeasonRewardsWithSeasonCards(userCards, season, tx);
-
-  // Update all user cards with new rewards
-  for (const userCardUpdate of calculationResult.userCards) {
-    await tx.userCard.update({
-      where: { id: userCardUpdate.id },
-      data: {
-        catiReward: userCardUpdate.catiReward,
-      },
-    });
-  }
-
-  // Update or create season rewards
-  for (const seasonReward of calculationResult.seasonRewards) {
-    // Check if season reward already exists
-    const existingReward = await tx.seasonReward.findFirst({
-      where: {
-        seasonId,
-        userId: seasonReward.userId,
-      },
-    });
-
-    if (existingReward) {
-      await tx.seasonReward.update({
-        where: { id: existingReward.id },
-        data: {
-          totalPoolShare: seasonReward.poolSharePercentage,
-          rewardAmount: seasonReward.totalReward,
-        },
-      });
-    } else {
-      await tx.seasonReward.create({
-        data: {
-          seasonId,
-          userId: seasonReward.userId,
-          totalPoolShare: seasonReward.poolSharePercentage,
-          rewardAmount: seasonReward.totalReward,
-        },
-      });
-    }
-  }
-}
+// Note: CATI reward calculation is now handled by cron jobs every 5 minutes
+// This function is no longer needed here
 
 export async function POST(request: NextRequest) {
   try {
@@ -243,15 +181,9 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // Recalculate all season rewards after this new card
-        await recalculateSeasonRewards(activeSeason.id, tx);
-
-        // Get updated user card with new reward
-        const updatedUserCard = await tx.userCard.findUnique({
-          where: { id: userCard.id },
-        });
-
-        return { success: true, userCard: updatedUserCard!, selectedCard, activeSeason };
+        // Note: CATI rewards will be calculated by cron jobs every 5 minutes
+        // Return the user card with initial 0 reward
+        return { success: true, userCard, selectedCard, activeSeason };
       } else {
         // Pack failed - no card won
         return { success: false, failureReason: cardResult.failureReason, activeSeason };
