@@ -137,11 +137,15 @@ export async function GET() {
         name: activeSeason.name,
         slogan: activeSeason.slogan,
         sponsorAmount: totalSponsorPool.toString(),
+        bidPoolAmount: activeSeason.bidPoolAmount.toString(),
+        additionalTotalPool: activeSeason.additionalTotalPool.toString(),
       },
       poolInfo: {
         totalPool: totalPool.toString(),
         totalSpent: totalSpent.toString(),
         totalSponsorPool: totalSponsorPool.toString(),
+        bidPoolAmount: activeSeason.bidPoolAmount.toString(),
+        additionalTotalPool: activeSeason.additionalTotalPool.toString(),
         userBidRewards: cardRewardInfo.reduce((sum, card) => sum + card.userBidReward, BigInt(0)).toString(),
         sponsorRewards: cardRewardInfo.reduce((sum, card) => sum + card.sponsorReward, BigInt(0)).toString(),
         cardRewards: cardRewardInfo.map(card => ({

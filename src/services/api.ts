@@ -125,11 +125,15 @@ export interface SeasonRewardsResponse {
     name: string;
     slogan: string;
     sponsorAmount: string;
+    bidPoolAmount: string;
+    additionalTotalPool: string;
   };
   poolInfo: {
     totalPool: string;
     totalSpent: string;
     sponsorAmount: string;
+    bidPoolAmount: string;
+    additionalTotalPool: string;
     rankPools: Record<string, string>;
     rankCounts: Record<string, number>;
     rewardPerCard: Record<string, string>;
