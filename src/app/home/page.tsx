@@ -69,13 +69,11 @@ function Home() {
   // Get season rewards data - use stable data during animation  
   const currentSeasonRewards = isPackAnimating ? stableSeasonRewards : seasonRewards;
   
-  // Get user's reward amount from season rewards data
-  const userRewardAmount = user && user.id && currentSeasonRewards ? 
-    currentSeasonRewards.seasonRewards.find(reward => reward.user.id === user.id!.toString())?.rewardAmount || '0' 
-    : undefined;
+  // Get bid pool amount (for Pool Amt display) from season rewards data
+  const totalPoolAmount = currentSeasonRewards?.poolInfo.bidPoolAmount;
   
-  // Get total pool amount from season rewards data
-  const totalPoolAmount = currentSeasonRewards?.poolInfo.totalPool;
+  // Get additional total pool (for Reward display) from season rewards data
+  const userRewardAmount = currentSeasonRewards?.poolInfo.additionalTotalPool;
   
   // Show loading page for initial authentication check
   if (authLoading && !walletState.isConnected) {

@@ -29,26 +29,11 @@ async function recalculateSeasonRewards(seasonId: bigint, tx: Omit<typeof prisma
     },
   });
 
-  // Calculate total spent to update bidPoolAmount
-  const totalSpent = userCards.reduce((sum, userCard) => sum + userCard.catiSpent, BigInt(0));
-
-  // Update season bid pool amount first
-  await tx.season.update({
-    where: { id: seasonId },
-    data: {
-      bidPoolAmount: totalSpent,
-    },
-  });
-
-  // Get updated season data
-  const updatedSeason = await tx.season.findUnique({
-    where: { id: seasonId },
-  });
-
-  if (!updatedSeason) return;
+  // Note: bidPoolAmount is now updated directly in the main transaction,
+  // so we don't need to recalculate it here. Just use the current season data.
 
   // Use new calculation logic with season cards
-  const calculationResult = await calculateSeasonRewardsWithSeasonCards(userCards, updatedSeason, tx);
+  const calculationResult = await calculateSeasonRewardsWithSeasonCards(userCards, season, tx);
 
   // Update all user cards with new rewards
   for (const userCardUpdate of calculationResult.userCards) {
@@ -197,6 +182,16 @@ export async function POST(request: NextRequest) {
         data: {
           catiBalance: {
             decrement: PACK_COST,
+          },
+        },
+      });
+
+      // Update season bid pool amount (always, regardless of card win/loss)
+      await tx.season.update({
+        where: { id: activeSeason.id },
+        data: {
+          bidPoolAmount: {
+            increment: PACK_COST,
           },
         },
       });
