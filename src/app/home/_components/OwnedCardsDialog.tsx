@@ -224,8 +224,11 @@ export function OwnedCardsDialog({ cards, isOpen, onOpenChange }: OwnedCardsDial
                               
                               {/* CATI reward amount */}
                               <div className="text-sm text-center font-medium truncate">
-                                {/* ({card.catiReward}) CATI */}
-                                (Cal) CATI
+                                {
+                                  Number(card.catiReward) > 0
+                                  ? `${card.catiReward} CATI`
+                                  : `(Cal) CATI`
+                                }
                               </div>
                             </div>
                           </div>
