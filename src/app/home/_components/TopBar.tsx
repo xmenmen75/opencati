@@ -7,6 +7,7 @@ import IconReward from '@/../public/images/icon-reward.png';
 import IconPoolAmt from '@/../public/images/icon-pool-amt.png';
 import Image from 'next/image';
 import { useState } from 'react';
+import MessageInbox from './message/MessageInbox';
 
 interface TopBarProps {
   walletState: WalletState;
@@ -27,6 +28,7 @@ interface TopBarProps {
 export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCardsCount, totalPoolAmount, userRewardAmount, onchainBalance, onConnectWallet, onDisconnectWallet, onSettings, onOpenCardsDialog, onOpenCatiManagement }: TopBarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [isMessageInboxOpen, setIsMessageInboxOpen] = useState(false);
 
   const isConnectedAndAuthenticated = walletState.isConnected && isAuthenticated;
 
@@ -112,11 +114,14 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
         </div>
 
         {/* Right side - Profile and wallet connection */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 relative">
           {isConnectedAndAuthenticated && user ? (
             <>
-              {/* Circular profile picture */}
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white bg-white/20 flex items-center justify-center overflow-hidden">
+              {/* Circular profile picture - clickable for MessageInbox */}
+              <div 
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white bg-white/20 flex items-center justify-center overflow-hidden cursor-pointer hover:border-blue-400 transition-colors"
+                onClick={() => setIsMessageInboxOpen(!isMessageInboxOpen)}
+              >
                 <Image
                   src={user.profilePictureUrl || DefaultCartiUserImage}
                   alt="Profile"
@@ -125,6 +130,12 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
                   className="w-full h-full object-cover"
                 />
               </div>
+
+              {/* MessageInbox dropdown */}
+              <MessageInbox 
+                isOpen={isMessageInboxOpen} 
+                onClose={() => setIsMessageInboxOpen(false)} 
+              />
 
               {/* Player name */}
               <div className="text-[#98A1AE] font-medium text-sm sm:text-base">

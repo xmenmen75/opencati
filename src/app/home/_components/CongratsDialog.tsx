@@ -6,17 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Heart, Sparkles, ThumbsUp, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 interface CongratsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   recipientNickname: string;
   recipientWalletAddress: string;
+  broadcastId: string;
 }
 
 type Reaction = 'heart' | 'confetti' | 'thumbsup' | null;
 
-function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAddress }: CongratsDialogProps) {
+function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAddress, broadcastId }: CongratsDialogProps) {
+  const { isAuthenticated, user } = useAuth();
   const [message, setMessage] = useState('');
   const [selectedReaction, setSelectedReaction] = useState<Reaction>(null);
   const [catiAmount, setCatiAmount] = useState('');
@@ -55,20 +58,43 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
     setSubmitError(null);
 
     try {
-      // TODO: Implement API call to send congratulations message
+      // Prepare message content with reaction if selected
+      let messageContent = message.trim();
+
       const payload = {
-        recipientWalletAddress,
-        message: message.trim(),
-        reaction: selectedReaction,
+        broadcastId,
+        content: messageContent,
         catiAmount: finalCatiAmount
       };
 
-      console.log('Sending congratulations:', payload);
+      // Check authentication using useAuth hook
+      if (!isAuthenticated || !user) {
+        setSubmitError('Please connect your wallet and sign in to send messages');
+        return;
+      }
+
+      const token = localStorage.getItem('opencati_auth_token');
+      if (!token) {
+        setSubmitError('Authentication token not found. Please sign in again.');
+        return;
+      }
+
+      const response = await fetch('/api/messages/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send message');
+      }
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success('Congratulations sent successfully!');
+      toast.success('Message sent successfully!');
       
       // Reset form
       setMessage('');
@@ -81,7 +107,7 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
       }, 500);
       
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Failed to send congratulations');
+      setSubmitError(error instanceof Error ? error.message : 'Failed to send message');
     } finally {
       setIsSubmitting(false);
     }

@@ -47,6 +47,7 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
   const [selectedUser, setSelectedUser] = useState<{
     nickname: string;
     walletAddress: string;
+    broadcastId: string;
   } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -230,12 +231,12 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
   };
 
   // Handle opening congrats dialog for a specific user
-  const handleUserClick = (nickname: string, walletAddress: string) => {
+  const handleUserClick = (nickname: string, walletAddress: string, broadcastId: string) => {
     // Don't allow users to send congrats to themselves
     if (user?.walletAddress === walletAddress) {
       return;
     }
-    setSelectedUser({ nickname, walletAddress });
+    setSelectedUser({ nickname, walletAddress, broadcastId });
     setCongratsDialogOpen(true);
   };
 
@@ -396,7 +397,8 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
                       }`}
                       onClick={() => !self && handleUserClick(
                           broadcast.userCard.user.userNickname,
-                          broadcast.userCard.user.walletAddress
+                          broadcast.userCard.user.walletAddress,
+                          broadcast.id
                       )}
                     >
                       <span className={`text-sm font-medium ${
@@ -457,6 +459,7 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
           onClose={handleCongratsDialogClose}
           recipientNickname={selectedUser.nickname}
           recipientWalletAddress={selectedUser.walletAddress}
+          broadcastId={selectedUser.broadcastId}
         />
       )}
     </div>
