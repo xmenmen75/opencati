@@ -30,10 +30,11 @@ interface AcquiredCard {
 interface AcquiredCardDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  userCardId: string
+  userCardId: string;
+  onBroadcastSuccess?: () => void;
 }
 
-export function AcquiredCardDialog({ isOpen, onClose, userCardId }: AcquiredCardDialogProps) {
+export function AcquiredCardDialog({ isOpen, onClose, userCardId, onBroadcastSuccess }: AcquiredCardDialogProps) {
   const [tipMessage, setTipMessage] = useState('I got a AA rank card.');
   const [onlyTipToCelebrate, setOnlyTipToCelebrate] = useState(true);
   const [selectedTipAmount, setSelectedTipAmount] = useState<number | null>(null);
@@ -107,7 +108,17 @@ export function AcquiredCardDialog({ isOpen, onClose, userCardId }: AcquiredCard
         throw new Error(errorData.error || 'Failed to broadcast message');
       }
       toast.success('Broadcast successful!');
+      
+      // Trigger callback for manual refresh as fallback
+      if (onBroadcastSuccess) {
+        onBroadcastSuccess();
+      }
+
+      // Trigger manual refresh event as fallback for SSE
+      window.dispatchEvent(new CustomEvent('broadcast-refresh'));
+      
       // Close dialog after successful broadcast
+      // Note: The SSE connection will automatically update all clients with the new broadcast
       setTimeout(() => {
         onClose();
       }, 500);

@@ -215,8 +215,10 @@ function Home() {
         
       </div>
 
-      {/* Broadcast Channel - Fixed at bottom */}
-      <BroadcastChannel className="fixed bottom-0 left-0 right-0 z-10" />
+      {/* Broadcast Channel - Fixed at bottom. only logged in users can see it */}
+      {isAuthenticated && user && (
+        <BroadcastChannel className="fixed bottom-0 left-0 right-0 z-10" />
+      )}
 
       {/* Owned Cards Dialog */}
       <OwnedCardsDialog

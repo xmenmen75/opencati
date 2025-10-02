@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { broadcastToAll } from "@/lib/sse-manager";
 
 export async function POST(req: NextRequest) {
   try {
@@ -104,6 +105,35 @@ export async function POST(req: NextRequest) {
         }
       }
     };
+
+    // Broadcast the new message to all connected clients via SSE
+    const broadcastData = {
+      type: 'new_broadcast',
+      broadcast: {
+        id: cardBroadcast.id.toString(),
+        userCardId: cardBroadcast.user_card_id.toString(),
+        content: cardBroadcast.content,
+        tipCati: cardBroadcast.tip_cati,
+        onlyCelebrate: cardBroadcast.only_celebrate,
+        createdAt: cardBroadcast.createdAt.toISOString(),
+        userCard: {
+          user: {
+            userNickname: cardBroadcast.userCard.user.userNickname,
+            profilePictureUrl: cardBroadcast.userCard.user.profilePictureUrl,
+            walletAddress: cardBroadcast.userCard.user.walletAddress
+          },
+          card: {
+            name: cardBroadcast.userCard.card.name,
+            rank: cardBroadcast.userCard.card.rank,
+            rarityColor: cardBroadcast.userCard.card.rarityColor
+          }
+        }
+      }
+    };
+
+    // Send to all connected SSE clients
+    console.log('Broadcasting new message to SSE clients:', broadcastData);
+    broadcastToAll(broadcastData);
 
     return NextResponse.json(response, { status: 201 });
 

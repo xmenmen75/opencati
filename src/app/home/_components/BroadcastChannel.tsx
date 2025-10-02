@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, User, Clock, Coins, GripHorizontal, RotateCcw } from 'lucide-react';
+import { MessageSquare, User, Clock, Coins, GripHorizontal, RotateCcw, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBroadcastSSE } from '@/hooks/useBroadcastSSE';
+import { useAuth } from '@/hooks/useAuth';
+import CongratsDialog from './CongratsDialog';
 
 interface Broadcast {
   id: string;
@@ -40,6 +43,11 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [isClient, setIsClient] = useState(false); // Track client-side mounting
   const [loadingMore, setLoadingMore] = useState(false);
+  const [congratsDialogOpen, setCongratsDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{
+    nickname: string;
+    walletAddress: string;
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -47,6 +55,15 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
   const MIN_HEIGHT = 100; 
   const MAX_HEIGHT = 400; 
   const BROADCASTS_LIMIT = 10;
+
+  // SSE connection for real-time updates
+  const { connectionStatus, newBroadcast, clearNewBroadcast, reconnect } = useBroadcastSSE();
+  
+  // Get current user for self-check
+  const { user } = useAuth();
+
+  // Track previous connection status to detect reconnections
+  const [prevConnectionStatus, setPrevConnectionStatus] = useState<string>('disconnected');
 
   // Fetch broadcasts function
   const fetchBroadcasts = async (page: number = 1, append: boolean = false) => {
@@ -94,6 +111,52 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
       fetchBroadcasts(1, false);
     }
   }, [isClient]);
+
+  // Handle new broadcasts from SSE
+  useEffect(() => {
+    if (newBroadcast && isClient) {
+      setBroadcasts(prev => [...prev, newBroadcast]);
+      clearNewBroadcast();
+      
+      // Auto-scroll to new message
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, [newBroadcast, isClient, clearNewBroadcast]);
+
+  // Refresh when SSE reconnects after being disconnected
+  useEffect(() => {
+    if (connectionStatus === 'connected' && prevConnectionStatus !== 'connected' && isClient && prevConnectionStatus !== 'disconnected') {
+      fetchBroadcasts(1, false);
+    }
+    setPrevConnectionStatus(connectionStatus);
+  }, [connectionStatus, prevConnectionStatus, isClient]);
+
+  // Fallback: Listen for manual refresh events
+  useEffect(() => {
+    const handleManualRefresh = () => {
+      fetchBroadcasts(1, false);
+    };
+
+    window.addEventListener('broadcast-refresh', handleManualRefresh);
+    return () => {
+      window.removeEventListener('broadcast-refresh', handleManualRefresh);
+    };
+  }, []);
+
+  // Polling fallback: Check for updates every 30 seconds if SSE is not connected
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      if (connectionStatus !== 'connected' && isClient) {
+        fetchBroadcasts(1, false);
+      }
+    }, 30000); 
+
+    return () => clearInterval(pollInterval);
+  }, [connectionStatus, isClient]);
 
   // Auto-scroll to bottom when new messages arrive (only for initial load)
   useEffect(() => {
@@ -164,6 +227,22 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
   // Refresh broadcasts
   const refreshBroadcasts = () => {
     fetchBroadcasts(1, false);
+  };
+
+  // Handle opening congrats dialog for a specific user
+  const handleUserClick = (nickname: string, walletAddress: string) => {
+    // Don't allow users to send congrats to themselves
+    if (user?.walletAddress === walletAddress) {
+      return;
+    }
+    setSelectedUser({ nickname, walletAddress });
+    setCongratsDialogOpen(true);
+  };
+
+  // Handle closing congrats dialog
+  const handleCongratsDialogClose = () => {
+    setCongratsDialogOpen(false);
+    setSelectedUser(null);
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -239,7 +318,7 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
           </span>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">          
           <Button 
             variant="ghost" 
             size="sm" 
@@ -298,18 +377,38 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
                 )}
                 
                 {/* Broadcast messages */}
-                {broadcasts.map((broadcast) => (
-                <div key={broadcast.id} className="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                {broadcasts.map((broadcast) => {
+                const self = broadcast.userCard.user.walletAddress === user?.walletAddress;
+                return (
+                <div key={broadcast.id} className={`rounded-lg p-3 border ${
+                  self 
+                    ? 'bg-blue-900/20 border-blue-700/50' 
+                    : 'bg-gray-800 border-gray-700'
+                }`}>
                   {/* User info */}
                   <div className="flex items-center gap-2 mb-2">
                     {/* 0x904***6Ba */}
-                    <span className="text-blue-400 text-sm font-medium">
-                      {broadcast.userCard.user.walletAddress.trim().slice(0, 6) + 
-                      '***' + broadcast.userCard.user.walletAddress.trim().slice(-3)}
-                    </span>
-                    <span className="text-blue-400 text-sm font-medium">
-                      {broadcast.userCard.user.userNickname}
-                    </span>
+                    <div 
+                      className={`${
+                        self 
+                          ? 'text-blue-300' 
+                          : 'cursor-pointer hover:underline hover:text-blue-300'
+                      }`}
+                      onClick={() => !self && handleUserClick(
+                          broadcast.userCard.user.userNickname,
+                          broadcast.userCard.user.walletAddress
+                      )}
+                    >
+                      <span className={`text-sm font-medium ${
+                        self ? 'text-blue-300' : 'text-blue-400'
+                      }`}>
+                        {broadcast.userCard.user.walletAddress.trim().slice(0, 6) + 
+                        '***' + broadcast.userCard.user.walletAddress.trim().slice(-3)}
+                        &nbsp;
+                        {broadcast.userCard.user.userNickname}
+                        {self && ' (You)'}
+                      </span>
+                    </div>
                     <span className="text-gray-500 text-xs">→</span>
                     <span className={`text-xs font-bold ${getRankColor(broadcast.userCard.card.rank)}`}>
                       {broadcast.userCard.card.rank}
@@ -317,6 +416,18 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
                     <span className="text-gray-400 text-xs">
                       {broadcast.userCard.card.name}
                     </span>
+                    {/* Tip info */}
+                    {broadcast.tipCati > 0 && (
+                      <div className="flex items-center gap-1 text-xs">
+                        <Coins className="h-3 w-3 text-yellow-400" />
+                        <span className="text-yellow-400">
+                          {broadcast.tipCati} CATI tip
+                        </span>
+                        {broadcast.onlyCelebrate && (
+                          <span className="text-gray-400">• celebration only</span>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center gap-1 ml-auto">
                       <Clock className="h-3 w-3 text-gray-500" />
                       <span className="text-gray-500 text-xs">
@@ -329,27 +440,24 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
                   <div className="text-white text-sm mb-2">
                     {broadcast.content}
                   </div>
-
-                  {/* Tip info */}
-                  {broadcast.tipCati > 0 && (
-                    <div className="flex items-center gap-1 text-xs">
-                      <Coins className="h-3 w-3 text-yellow-400" />
-                      <span className="text-yellow-400">
-                        {broadcast.tipCati} CATI tip
-                      </span>
-                      {broadcast.onlyCelebrate && (
-                        <span className="text-gray-400">• celebration only</span>
-                      )}
-                    </div>
-                  )}
                 </div>
-              ))}
+              )})}
                 
                 <div ref={messagesEndRef} />
               </>
             )}
           </div>
         </div>
+      )}
+
+      {/* Congrats Dialog */}
+      {selectedUser && (
+        <CongratsDialog
+          isOpen={congratsDialogOpen}
+          onClose={handleCongratsDialogClose}
+          recipientNickname={selectedUser.nickname}
+          recipientWalletAddress={selectedUser.walletAddress}
+        />
       )}
     </div>
   );
