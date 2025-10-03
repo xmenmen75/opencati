@@ -212,6 +212,41 @@ export const seasonsApi = {
   },
 };
 
+export interface TransactionSummary {
+  totalTransactions: number;
+  totalPackOpenings: number;
+  amountSpent: number;
+  amountEarned: number;
+  winRate: number;
+}
+
+export interface Transaction {
+  id: string;
+  type: string;
+  amount: string;
+  description: string;
+  referenceId: string | null;
+  createdAt: string;
+  source: string;
+  cardDetails?: {
+    cardName: string;
+    cardRank: string;
+    rarityColor: string;
+    catiReward: string;
+  } | null;
+}
+
+export interface TransactionResponse {
+  transactions: Transaction[];
+  summary: TransactionSummary;
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
 /**
  * Transactions API functions
  */
@@ -219,7 +254,7 @@ export const transactionsApi = {
   /**
    * Get user's transaction history
    */
-  getTransactions: async (limit = 20, offset = 0): Promise<unknown[]> => {
+  getTransactions: async (limit = 20, offset = 0): Promise<TransactionResponse> => {
     return apiClient.get(`/api/transactions?limit=${limit}&offset=${offset}`);
   },
 
