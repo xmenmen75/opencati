@@ -51,37 +51,34 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
           <Button
             onClick={onOpenCardsDialog}
             disabled={!isConnectedAndAuthenticated}
-            className={`backdrop-blur-sm transition-colors shadow-lg px-3 py-2 h-auto cursor-pointer ${
-              isConnectedAndAuthenticated
-                ? 'bg-[#4A5567] text-black hover:bg-[#4A5567]/80' 
+            className={`backdrop-blur-sm transition-colors shadow-lg px-3 py-2 h-auto cursor-pointer ${isConnectedAndAuthenticated
+                ? 'bg-[#4A5567] text-black hover:bg-[#4A5567]/80'
                 : 'bg-[#4A5567]/50 text-black/50 cursor-not-allowed hover:bg-[#4A5567]/50'
-            }`}
+              }`}
           >
             Cards: {isConnectedAndAuthenticated ? ownedCardsCount : 0}
           </Button>
 
           {/* CATI balance button */}
-          <Button 
+          <Button
             onClick={onOpenCatiManagement}
             disabled={!isConnectedAndAuthenticated}
-            className={`backdrop-blur-sm shadow-lg px-3 py-2 h-auto ${
-              isConnectedAndAuthenticated
-                ? 'bg-[#4A5567] text-black hover:bg-[#4A5567]/80 cursor-pointer' 
+            className={`backdrop-blur-sm shadow-lg px-3 py-2 h-auto ${isConnectedAndAuthenticated
+                ? 'bg-[#4A5567] text-black hover:bg-[#4A5567]/80 cursor-pointer'
                 : 'bg-[#4A5567]/50 text-black/50 cursor-not-allowed hover:bg-[#4A5567]/50'
-            }`}
+              }`}
           >
             CATI: {isConnectedAndAuthenticated ? (parseInt(user?.catiBalance || '0')).toLocaleString() : '---'}
           </Button>
 
           {/* Pool and reward info */}
-          <div className={`items-center flex flex-row gap-4 text-sm ${
-            isConnectedAndAuthenticated ? 'text-amber-400' : 'text-amber-400/50'
-          }`}>
+          <div className={`items-center flex flex-row gap-4 text-sm ${isConnectedAndAuthenticated ? 'text-amber-400' : 'text-amber-400/50'
+            }`}>
             <div className="flex items-center gap-1">
               {/* <Trophy className="h-4 w-4" /> */}
               <Image src={IconPoolAmt} alt="Pool Amount" className="h-4 w-4" />
-              <span>Pool Amt: {(walletState.isConnected && isAuthenticated) ? 
-                (totalPoolAmount ? `${parseInt(totalPoolAmount).toLocaleString()} CATI` : 'Loading...') : 
+              <span>Pool Amt: {(walletState.isConnected && isAuthenticated) ?
+                (totalPoolAmount ? `${parseInt(totalPoolAmount).toLocaleString()} CATI` : 'Loading...') :
                 '---'
               }</span>
             </div>
@@ -89,8 +86,8 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
             <div className="flex items-center gap-1">
               {/* <Coins className="h-4 w-4" /> */}
               <Image src={IconReward} alt="Reward" className="h-4 w-4" />
-              <span>Reward: {(walletState.isConnected && isAuthenticated) ? 
-                (userRewardAmount ? `${parseInt(userRewardAmount).toLocaleString()} CATI` : 'Loading...') : 
+              <span>Reward: {(walletState.isConnected && isAuthenticated) ?
+                (userRewardAmount ? `${parseInt(userRewardAmount).toLocaleString()} CATI` : 'Loading...') :
                 '---'
               }</span>
             </div>
@@ -134,7 +131,7 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
               {/* Desktop-only buttons */}
               <div className="hidden lg:flex items-center gap-4">
                 {/* Disconnect button */}
-                <Button 
+                <Button
                   onClick={onDisconnectWallet}
                   className="bg-[#4A5567] backdrop-blur-sm text-black hover:bg-[#4A5567]/80 transition-colors shadow-lg px-3 py-2 h-auto"
                 >
@@ -170,17 +167,15 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
       {isMenuVisible && isConnectedAndAuthenticated && (
         <div className="lg:hidden fixed inset-0 z-50">
           {/* Backdrop overlay */}
-          <div 
-            className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${
-              isMenuOpen ? 'opacity-100' : 'opacity-0'
-            }`}
+          <div
+            className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0'
+              }`}
             onClick={handleMenuToggle}
           />
-          
+
           {/* Slide-in menu panel */}
-          <div className={`absolute left-0 top-0 h-full w-80 bg-[#1a1a1a]/95 backdrop-blur-md border-r border-white/20 shadow-xl transform transition-transform duration-300 ease-in-out ${
-            isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}>
+          <div className={`absolute left-0 top-0 h-full w-80 bg-[#1a1a1a]/95 backdrop-blur-md border-r border-white/20 shadow-xl transform transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}>
             {/* Menu header */}
             <div className="flex items-center justify-between p-4 border-b border-white/20">
               <h2 className="text-lg font-semibold text-white">Menu</h2>
@@ -222,9 +217,9 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
 
               {/* Pool Amount */}
               <div className="flex items-center text-amber-400 px-3 py-3 bg-white/5 rounded-lg">
-                <Trophy className="h-5 w-5 mr-3" />
-                <div>
-                  <div className="text-xs text-white/60">Pool Amount</div>
+                <Image src={IconPoolAmt} alt="Pool Amount" className="h-4 w-4" />
+                <div  className="ml-3">
+                  <div className="text-xs text-white/60">Pool Amt</div>
                   <div className="font-medium">
                     {totalPoolAmount ? `${parseInt(totalPoolAmount).toLocaleString()} CATI` : 'Loading...'}
                   </div>
@@ -233,9 +228,9 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
 
               {/* Reward Amount */}
               <div className="flex items-center text-amber-400 px-3 py-3 bg-white/5 rounded-lg">
-                <Coins className="h-5 w-5 mr-3" />
-                <div>
-                  <div className="text-xs text-white/60">Your Reward</div>
+                <Image src={IconReward} alt="Reward" className="h-4 w-4" />
+                <div   className="ml-3">
+                  <div className="text-xs text-white/60">Reward</div>
                   <div className="font-medium">
                     {userRewardAmount ? `${parseInt(userRewardAmount).toLocaleString()} CATI` : 'Loading...'}
                   </div>

@@ -110,7 +110,7 @@ export function OwnedCardsDialog({ cards, isOpen, onOpenChange }: OwnedCardsDial
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Your Cards Collection</span>

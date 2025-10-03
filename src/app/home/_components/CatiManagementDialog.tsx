@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowUpCircle, ArrowDownCircle, Wallet, Coins } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Wallet, Coins, History } from 'lucide-react';
+import { CatiHistoryDialog } from './CatiHistoryDialog';
 
 interface CatiManagementDialogProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export function CatiManagementDialog({
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isDepositLoading, setIsDepositLoading] = useState(false);
   const [isWithdrawLoading, setIsWithdrawLoading] = useState(false);
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
 
   const handleDeposit = async () => {
     if (!depositAmount || parseFloat(depositAmount) <= 0) return;
@@ -65,11 +67,22 @@ export function CatiManagementDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Coins className="h-5 w-5 text-amber-500" />
-            CATI Management
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-amber-500" />
+              CATI Management
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsHistoryDialogOpen(true)}
+              className="text-gray-600 hover:text-gray-900 p-2 h-auto"
+            >
+              <History className="h-4 w-4 mr-1" />
+              History
+            </Button>
           </DialogTitle>
           <DialogDescription>
             Manage your CATI tokens between your wallet and the game platform
@@ -171,6 +184,12 @@ export function CatiManagementDialog({
           </div>
         </div>
       </DialogContent>
+
+      {/* CATI History Dialog */}
+      <CatiHistoryDialog
+        isOpen={isHistoryDialogOpen}
+        onClose={() => setIsHistoryDialogOpen(false)}
+      />
     </Dialog>
   );
 }
