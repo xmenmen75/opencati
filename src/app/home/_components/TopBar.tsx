@@ -6,7 +6,7 @@ import DefaultCartiUserImage from '@/../public/images/default-cati-user.webp';
 import IconReward from '@/../public/images/icon-reward.png';
 import IconPoolAmt from '@/../public/images/icon-pool-amt.png';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MessageInbox from './message/MessageInbox';
 
 interface TopBarProps {
@@ -29,8 +29,53 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isMessageInboxOpen, setIsMessageInboxOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const isConnectedAndAuthenticated = walletState.isConnected && isAuthenticated;
+
+  const fetchUnreadCount = async () => {
+    if (!isConnectedAndAuthenticated) {
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('opencati_auth_token');
+      if (!token) {
+        setUnreadCount(0);
+        return;
+      }
+
+      const response = await fetch('/api/messages/get-unread', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadCount(data.unreadCount || 0);
+      } else {
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+      setUnreadCount(0);
+    }
+  };
+
+  // Fetch unread count when authentication state changes
+  useEffect(() => {
+    fetchUnreadCount();
+  }, [isConnectedAndAuthenticated]);
+
+  // Fetch unread count when message inbox closes (to update after reading messages)
+  useEffect(() => {
+    if (!isMessageInboxOpen && isConnectedAndAuthenticated) {
+      fetchUnreadCount();
+    }
+  }, [isMessageInboxOpen, isConnectedAndAuthenticated]);
 
   const handleMenuToggle = () => {
     if (!isMenuOpen) {
@@ -115,23 +160,32 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
           {isConnectedAndAuthenticated && user ? (
             <>
               {/* Circular profile picture - clickable for MessageInbox */}
-              <div 
-                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white bg-white/20 flex items-center justify-center overflow-hidden cursor-pointer hover:border-blue-400 transition-colors"
-                onClick={() => setIsMessageInboxOpen(!isMessageInboxOpen)}
-              >
-                <Image
-                  src={user.profilePictureUrl || DefaultCartiUserImage}
-                  alt="Profile"
-                  width={40}
-                  height={40}
-                  className="w-full h-full object-cover"
-                />
+              <div className="relative">
+                <div 
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white bg-white/20 flex items-center justify-center overflow-hidden cursor-pointer hover:border-blue-400 transition-colors"
+                  onClick={() => setIsMessageInboxOpen(!isMessageInboxOpen)}
+                >
+                  <Image
+                    src={user.profilePictureUrl || DefaultCartiUserImage}
+                    alt="Profile"
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {/* Unread message count badge */}
+                {unreadCount > 0 && (
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 font-medium border-2 border-white shadow-sm">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </div>
+                )}
               </div>
 
               {/* MessageInbox dropdown */}
               <MessageInbox 
                 isOpen={isMessageInboxOpen} 
-                onClose={() => setIsMessageInboxOpen(false)} 
+                onClose={() => setIsMessageInboxOpen(false)}
+                onUnreadCountUpdate={fetchUnreadCount}
               />
 
               {/* Player name */}

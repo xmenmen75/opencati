@@ -150,7 +150,6 @@ export function AcquiredCardDialog({ isOpen, onClose, userCardId, onBroadcastSuc
                 className="w-full h-full object-cover"
               />
             </div>
-            <p>User card id: {userCardId}</p>
           </div>
 
           {/* Card Details */}

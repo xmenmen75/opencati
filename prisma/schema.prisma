@@ -73,6 +73,7 @@ model Message {
   hasReply          Boolean       @default(false) @map("has_reply")
   senderDeletedAt   DateTime?     @map("sender_deleted_at")
   receiverDeletedAt DateTime?     @map("receiver_deleted_at")
+  seenAt            DateTime?     @map("seen_at")
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @default(now()) @map("updated_at")
 
@@ -89,6 +90,7 @@ model MessageReply {
   messageId   BigInt   @map("message_id")
   senderId    BigInt   @map("sender_id")
   content     String   @db.VarChar(255)
+  seenAt      DateTime?                @map("seen_at")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @map("updated_at")
 

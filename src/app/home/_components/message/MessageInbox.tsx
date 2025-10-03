@@ -9,40 +9,31 @@ import MessageDialog from './MessageDialog';
 interface Message {
   id: string;
   content: string;
-  hasReply: boolean;
   createdAt: string;
-  updatedAt: string;
+  seenAt?: string | null;
   sender: {
     nickname: string;
     walletAddress: string;
     profilePictureUrl?: string;
   };
-  broadcast: {
-    id: string;
-    content: string;
-    tipCati: number;
-    onlyCelebrate: boolean;
-    createdAt: string;
-    userCard: {
-      card: {
-        name: string;
-        rank: string;
-        rarityColor: string;
-      };
-      user: {
-        nickname: string;
-        walletAddress: string;
-      };
-    };
+  receiver: {
+    nickname: string;
+    walletAddress: string;
+    profilePictureUrl?: string;
   };
+  isCurrentUserSender: boolean;
+  isCurrentUserReceiver: boolean;
+  displayName: string;
+  displayWalletAddress: string;
 }
 
 interface MessageInboxProps {
   isOpen: boolean;
   onClose: () => void;
+  onUnreadCountUpdate?: () => void;
 }
 
-function MessageInbox({ isOpen, onClose }: MessageInboxProps) {
+function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProps) {
   const { isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -205,6 +196,15 @@ function MessageInbox({ isOpen, onClose }: MessageInboxProps) {
     setSelectedMessage(null);
   };
 
+  const handleMessageRead = (messageId: string) => {
+    // Update local state to mark message as read
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId 
+        ? { ...msg, seenAt: new Date().toISOString() }
+        : msg
+    ));
+  };
+
   const getReactionIcon = (reaction: string) => {
     switch (reaction) {
       case 'heart':
@@ -251,56 +251,69 @@ function MessageInbox({ isOpen, onClose }: MessageInboxProps) {
           </div>
         ) : (
           <div className="p-2">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg border-b border-gray-100 last:border-b-0 cursor-pointer"
-                onClick={() => handleMessageClick(message)}
-              >
-                {/* Avatar */}
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gray-300 rounded-lg flex items-center justify-center">
-                    <div className="w-6 h-6 bg-gray-500 rounded"></div>
+            {messages.map((message) => {
+              const isUnread = message.isCurrentUserReceiver && !message.seenAt;
+              
+              return (
+                <div
+                  key={message.id}
+                  className={`flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg border-b border-gray-100 last:border-b-0 cursor-pointer
+                  `}
+                  onClick={() => handleMessageClick(message)}
+                >
+                  {/* Avatar with unread indicator */}
+                  <div className="flex-shrink-0 relative">
+                    <div className="w-10 h-10 bg-gray-300 rounded-lg flex items-center justify-center">
+                      <div className="w-6 h-6 bg-gray-500 rounded"></div>
+                    </div>
+                  </div>
+
+                  {/* Message Content */}
+                  <div className="flex-1 min-w-0">
+                    {/* Sender name */}
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className={`${message.isCurrentUserSender ? 'text-gray-600' : 'text-blue-600'} 
+                        ${isUnread ? 'font-semibold' : 'font-medium'} text-sm truncate`}>
+                          {message.isCurrentUserSender ? 'You' : message.displayName}
+                        </h4>
+                        {isUnread && (
+                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteMessage(message.id);
+                        }}
+                        disabled={deletingIds.has(message.id)}
+                        className={`p-0 h-auto transition-colors ${
+                          deletingIds.has(message.id) 
+                            ? 'text-gray-300 cursor-not-allowed' 
+                            : 'text-gray-400 hover:text-red-500'
+                        }`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Message text */}
+                    <p className={`text-gray-700 text-sm mb-2 line-clamp-2 ${
+                      isUnread ? 'font-medium' : ''
+                    }`}>
+                      {message.content}
+                    </p>
+
+                    {/* Timestamp */}
+                    <div className="text-xs text-gray-500">
+                      {new Date(message.createdAt).toLocaleString()}
+                    </div>
                   </div>
                 </div>
-
-                {/* Message Content */}
-                <div className="flex-1 min-w-0">
-                  {/* Sender name */}
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="text-blue-600 font-medium text-sm truncate">
-                      {message.sender.nickname}
-                    </h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteMessage(message.id);
-                      }}
-                      disabled={deletingIds.has(message.id)}
-                      className={`p-0 h-auto transition-colors ${
-                        deletingIds.has(message.id) 
-                          ? 'text-gray-300 cursor-not-allowed' 
-                          : 'text-gray-400 hover:text-red-500'
-                      }`}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {/* Message text */}
-                  <p className="text-gray-700 text-sm mb-2 line-clamp-2">
-                    {message.content}
-                  </p>
-
-                  {/* Timestamp */}
-                  <div className="text-xs text-gray-500">
-                    {new Date(message.createdAt).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -311,6 +324,8 @@ function MessageInbox({ isOpen, onClose }: MessageInboxProps) {
           isOpen={!!selectedMessage}
           onClose={handleCloseDialog}
           messageId={selectedMessage.id}
+          onMessageRead={handleMessageRead}
+          onUnreadCountUpdate={onUnreadCountUpdate}
         />
       )}
     </div>

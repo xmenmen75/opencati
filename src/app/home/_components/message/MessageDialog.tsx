@@ -14,6 +14,7 @@ interface MessageData {
   hasReply: boolean;
   createdAt: string;
   updatedAt: string;
+  seenAt?: string | null;
   sender: {
     id: string;
     nickname: string;
@@ -65,12 +66,16 @@ interface MessageDialogProps {
   isOpen: boolean;
   onClose: () => void;
   messageId: string;
+  onMessageRead?: (messageId: string) => void;
+  onUnreadCountUpdate?: () => void;
 }
 
 function MessageDialog({ 
   isOpen, 
   onClose, 
-  messageId
+  messageId,
+  onMessageRead,
+  onUnreadCountUpdate
 }: MessageDialogProps) {
   const [messageData, setMessageData] = useState<MessageData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -114,6 +119,34 @@ function MessageDialog({
       }
 
       setMessageData(result.message);
+      
+      // Mark message as read if current user is receiver and message is unread
+      if (result.message.isCurrentUserReceiver && !result.message.seenAt) {
+        try {
+          const readResponse = await fetch('/api/messages/read', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ messageId }),
+          });
+          
+          // If successful, notify parent components
+          if (readResponse.ok) {
+            if (onMessageRead) {
+              onMessageRead(messageId);
+            }
+            // Update unread count in TopBar
+            if (onUnreadCountUpdate) {
+              onUnreadCountUpdate();
+            }
+          }
+        } catch (error) {
+          console.error('Error marking message as read:', error);
+          // Don't show error to user for this background operation
+        }
+      }
       
       // Pre-fill reply if it exists
       if (result.message.reply) {
@@ -227,7 +260,11 @@ function MessageDialog({
       <DialogContent showCloseButton={false} className="max-w-lg bg-white p-6">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-lg font-semibold text-gray-800">
-            {loading ? 'Loading...' : messageData ? `Messages from ${messageData.sender.nickname}` : 'Message'}
+            {loading ? 'Loading...' : messageData ? (
+              messageData.isCurrentUserSender 
+                ? `Message to ${messageData.receiver.nickname}` 
+                : `Message from ${messageData.sender.nickname}`
+            ) : 'Message'}
           </DialogTitle>
           <Button
             variant="ghost"
@@ -249,9 +286,11 @@ function MessageDialog({
           </div>
         ) : (
           <>
-            {/* Sender wallet address */}
+            {/* Show appropriate address based on user role */}
             <div className="text-sm text-gray-600 mb-4">
-              {messageData.sender.walletAddress}
+              {messageData.isCurrentUserSender 
+                ? messageData.receiver.walletAddress 
+                : messageData.sender.walletAddress}
             </div>
 
             {/* Original message content */}
@@ -261,70 +300,48 @@ function MessageDialog({
               </p>
             </div>
 
-            {/* Show existing reply if it exists */}
-            {messageData.reply && (
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-400">
-                <div className="text-xs text-gray-500 mb-1">
-                  Your reply • {new Date(messageData.reply.createdAt).toLocaleString()}
-                </div>
+            {/* Always show divider and reply section */}
+            <hr className="border-gray-200 my-4" />
+            <div className="mb-4">
+              {messageData.reply ? (
                 <p className="text-gray-700 text-sm">
-                  {messageData.reply.content}
+                  <span className="font-medium">Reply:</span> {messageData.reply.content}
                 </p>
-              </div>
-            )}
+              ) : (
+                <p className="text-gray-500 text-sm italic">
+                  No reply yet
+                </p>
+              )}
+            </div>
           </>
         )}
 
-        {/* Reply section */}
-        {messageData && (
+        {/* Reply section - only show if current user is receiver */}
+        {messageData && !messageData.isCurrentUserSender && (
           <div className="border-t border-gray-200 pt-4">
-
             {!messageData.reply ? (
               messageData.canReply ? (
                 <>
-                  {/* Reply textarea with buttons */}
-                  <div className="relative mb-4">
+                  {/* Simplified reply textarea */}
+                  <div className="mb-4">
                     <textarea
                       value={replyMessage}
                       onChange={(e) => setReplyMessage(e.target.value)}
                       placeholder="Enter your reply message..."
-                      className="w-full h-24 p-3 pr-16 pb-12 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full h-20 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none
+                      focus:ring-2 focus:ring-blue-500"
                       maxLength={255}
                     />
-                    
-                    {/* Image upload and quick reply buttons inside textarea */}
-                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                      {/* Image upload button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleImageUpload}
-                        className="p-1 h-7 w-7 hover:bg-gray-100 text-gray-500 hover:text-gray-700"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-
-                      {/* Quick reply button */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleQuickReply('Thank you!')}
-                        className="text-xs px-3 py-1 h-7 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                      >
-                        Thank you!
-                      </Button>
-                    </div>
                   </div>
 
-                  {/* CATI amount section */}
+                  {/* Simplified CATI amount section */}
                   <div className="mb-4">
-                    {/* Custom amount input */}
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2">
                       <Input
                         type="number"
                         value={catiAmount}
                         onChange={(e) => setCatiAmount(e.target.value)}
-                        placeholder="Input the CATI amount you want to send back"
+                        placeholder="CATI amount (optional)"
                         className="flex-1"
                         min="1"
                       />
@@ -332,24 +349,6 @@ function MessageDialog({
                         <div className="w-4 h-4 bg-orange-400 rounded-full"></div>
                         CATI
                       </div>
-                    </div>
-
-                    {/* Preset amount buttons */}
-                    <div className="flex gap-2">
-                      {presetAmounts.map((amount) => (
-                        <Button
-                          key={amount}
-                          variant="outline"
-                          onClick={() => setCatiAmount(amount.toString())}
-                          className={`flex-1 text-sm ${
-                            catiAmount === amount.toString()
-                              ? 'bg-blue-100 border-blue-300 text-blue-700'
-                              : 'border-gray-300 text-gray-700'
-                          }`}
-                        >
-                          Tip {amount}CATI
-                        </Button>
-                      ))}
                     </div>
                   </div>
 
@@ -363,8 +362,8 @@ function MessageDialog({
                   {/* Send button */}
                   <Button
                     onClick={handleSend}
-                    disabled={isSubmitting || (!replyMessage.trim() && !catiAmount)}
-                    className="w-full bg-gray-400 hover:bg-gray-500 text-white font-medium py-3"
+                    disabled={isSubmitting || !replyMessage.trim()}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2"
                   >
                     {isSubmitting ? 'Sending...' : 'Send Reply'}
                   </Button>
