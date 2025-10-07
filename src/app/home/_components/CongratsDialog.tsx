@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Heart, Sparkles, ThumbsUp, Plus, X } from 'lucide-react';
+import { Heart, ThumbsUp, Plus, X, PartyPopper } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -64,7 +64,8 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
       const payload = {
         broadcastId,
         content: messageContent,
-        catiAmount: finalCatiAmount
+        catiAmount: finalCatiAmount,
+        reaction: selectedReaction ? selectedReaction.toUpperCase() : null
       };
 
       // Check authentication using useAuth hook
@@ -118,7 +119,7 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
       case 'heart':
         return <Heart className="h-5 w-5" fill={selectedReaction === 'heart' ? 'currentColor' : 'none'} />;
       case 'confetti':
-        return <Sparkles className="h-5 w-5" fill={selectedReaction === 'confetti' ? 'currentColor' : 'none'} />;
+        return <PartyPopper className="h-5 w-5" fill={selectedReaction === 'confetti' ? 'currentColor' : 'none'} />;
       case 'thumbsup':
         return <ThumbsUp className="h-5 w-5" fill={selectedReaction === 'thumbsup' ? 'currentColor' : 'none'} />;
       default:
@@ -155,23 +156,43 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
 
         {/* Message textarea */}
         <div className="mb-4">
-          <div className="relative">
+          <div className="border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500">
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Enter your message..."
-              className="w-full h-24 p-3 pr-16 pb-12 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-3 pr-16 border-0 rounded-t-lg resize-none focus:outline-none bg-transparent"
               maxLength={255}
+              style={{ 
+                minHeight: '60px'
+              }}
+              rows={1}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                const maxHeight = 120; // Maximum height in pixels
+                
+                target.style.height = 'auto';
+                const contentHeight = target.scrollHeight;
+                const newHeight = Math.max(60, Math.min(maxHeight, contentHeight));
+                target.style.height = newHeight + 'px';
+                
+                // Enable scrolling if content exceeds max height
+                if (contentHeight > maxHeight) {
+                  target.style.overflowY = 'auto';
+                } else {
+                  target.style.overflowY = 'hidden';
+                }
+              }}
             />
             
-            {/* Image upload and reactions inside textarea */}
-            <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+            {/* Image upload and reactions - relative positioning */}
+            <div className="flex items-center justify-between px-2 py-2 rounded-b-lg">
               {/* Image upload button */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleImageUpload}
-                className="p-1 h-7 w-7 hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+                className="p-1 h-7 w-7 bg-gray-100 text-gray-500 hover:text-gray-700"
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -182,7 +203,7 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
                   variant="ghost"
                   size="sm"
                   onClick={() => handleReactionSelect('heart')}
-                  className={`p-1 h-7 w-7 hover:bg-gray-100 ${
+                  className={`p-1 h-7 w-7 bg-gray-100 ${
                     selectedReaction === 'heart' 
                       ? 'bg-red-100 text-red-500' 
                       : 'text-gray-500 hover:text-gray-700'
@@ -195,7 +216,7 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
                   variant="ghost"
                   size="sm"
                   onClick={() => handleReactionSelect('confetti')}
-                  className={`p-1 h-7 w-7 hover:bg-gray-100 ${
+                  className={`p-1 h-7 w-7 bg-gray-100 ${
                     selectedReaction === 'confetti' 
                       ? 'bg-yellow-100 text-yellow-500' 
                       : 'text-gray-500 hover:text-gray-700'
@@ -208,7 +229,7 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
                   variant="ghost"
                   size="sm"
                   onClick={() => handleReactionSelect('thumbsup')}
-                  className={`p-1 h-7 w-7 hover:bg-gray-100 ${
+                  className={`p-1 h-7 w-7 bg-gray-100 ${
                     selectedReaction === 'thumbsup' 
                       ? 'bg-blue-100 text-blue-500' 
                       : 'text-gray-500 hover:text-gray-700'
@@ -247,9 +268,11 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
                 onClick={() => setCatiAmount(amount.toString())}
                 className={`flex-1 ${
                   catiAmount === amount.toString()
-                    ? 'bg-blue-100 border-blue-300 text-blue-700'
-                    : 'border-gray-300 text-gray-700'
-                }`}
+                    ? 'bg-gray-300 border-gray-300 text-gray-700'
+                    : 'bg-gray-100 border-gray-100 text-gray-700'
+                }
+                hover:bg-gray-300
+                `}
               >
                 {amount} CATI
               </Button>

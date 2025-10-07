@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Heart, Sparkles, ThumbsUp } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
 
@@ -15,6 +15,7 @@ interface MessageData {
   createdAt: string;
   updatedAt: string;
   seenAt?: string | null;
+  reaction?: string | null;
   sender: {
     id: string;
     nickname: string;
@@ -85,6 +86,19 @@ function MessageDialog({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const presetAmounts = [10, 100, 1000];
+
+  const getReactionIcon = (reaction: string) => {
+    switch (reaction?.toLowerCase()) {
+      case 'heart':
+        return <Heart className="h-4 w-4 text-red-500" fill="currentColor" />;
+      case 'confetti':
+        return <Sparkles className="h-4 w-4 text-yellow-500" fill="currentColor" />;
+      case 'thumbsup':
+        return <ThumbsUp className="h-4 w-4 text-blue-500" fill="currentColor" />;
+      default:
+        return null;
+    }
+  };
 
   const fetchMessage = async () => {
     if (!messageId) return;
@@ -259,11 +273,16 @@ function MessageDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent showCloseButton={false} className="max-w-lg bg-white p-6">
         <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="text-lg font-semibold text-gray-800">
+          <DialogTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             {loading ? 'Loading...' : messageData ? (
-              messageData.isCurrentUserSender 
-                ? `Message to ${messageData.receiver.nickname}` 
-                : `Message from ${messageData.sender.nickname}`
+              <>
+                <span>
+                  {messageData.isCurrentUserSender 
+                    ? `Message to ${messageData.receiver.nickname}` 
+                    : `Message from ${messageData.sender.nickname}`}
+                </span>
+                {messageData.reaction && getReactionIcon(messageData.reaction)}
+              </>
             ) : 'Message'}
           </DialogTitle>
           <Button
@@ -318,7 +337,7 @@ function MessageDialog({
 
         {/* Reply section - only show if current user is receiver */}
         {messageData && !messageData.isCurrentUserSender && (
-          <div className="border-t border-gray-200 pt-4">
+          <div className={`${!messageData.reply && 'border-t border-gray-200'} pt-4}`}>
             {!messageData.reply ? (
               messageData.canReply ? (
                 <>

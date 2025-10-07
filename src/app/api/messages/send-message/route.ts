@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const senderId = BigInt(decoded.sub);
     const body = await request.json();
     
-    const { broadcastId, content, catiAmount = 0 } = body;
+    const { broadcastId, content, catiAmount = 0, reaction } = body;
 
     // Validate required fields
     if (!broadcastId) {
@@ -36,6 +36,11 @@ export async function POST(request: NextRequest) {
 
     if (!content || content.trim().length === 0) {
       return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
+    }
+
+    // Validate reaction if provided
+    if (reaction && !['HEART', 'CONFETTI', 'THUMBSUP'].includes(reaction)) {
+      return NextResponse.json({ error: 'Invalid reaction type' }, { status: 400 });
     }
 
     if (content.length > 1000) {
@@ -93,7 +98,8 @@ export async function POST(request: NextRequest) {
           senderId,
           receiverId,
           broadcastId: BigInt(broadcastId),
-          content: content.trim()
+          content: content.trim(),
+          reaction: reaction || null
         },
         include: {
           sender: {

@@ -110,6 +110,8 @@ export async function GET(request: NextRequest) {
       hasReply: message.hasReply,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
+      seenAt: message.seenAt,
+      reaction: message.reaction,
       sender: {
         id: message.sender.id.toString(),
         nickname: message.sender.userNickname,
