@@ -320,35 +320,38 @@ function MessageDialog({
             </div>
 
             {/* Always show divider and reply section */}
-            <hr className="border-gray-200 my-4" />
-            <div className="mb-4">
+            <hr className="border-gray-200" />
+            <div className="">
               {messageData.reply ? (
                 <p className="text-gray-700 text-sm">
                   <span className="font-medium">Reply:</span> {messageData.reply.content}
                 </p>
-              ) : (
+              ) : messageData.isCurrentUserSender ?  (
                 <p className="text-gray-500 text-sm italic">
                   No reply yet
                 </p>
-              )}
+              ) : null}
             </div>
           </>
         )}
 
         {/* Reply section - only show if current user is receiver */}
         {messageData && !messageData.isCurrentUserSender && (
-          <div className={`${!messageData.reply && 'border-t border-gray-200'} pt-4}`}>
+          <div className={`${!messageData.reply && ''}}`}>
             {!messageData.reply ? (
               messageData.canReply ? (
                 <>
                   {/* Simplified reply textarea */}
                   <div className="mb-4">
+                    <label>
+                      Reply to {messageData.sender.nickname}:
+                    </label>
                     <textarea
                       value={replyMessage}
                       onChange={(e) => setReplyMessage(e.target.value)}
                       placeholder="Enter your reply message..."
                       className="w-full h-20 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none
-                      focus:ring-2 focus:ring-blue-500"
+                      focus:ring-2 focus:ring-blue-500 mt-2"
                       maxLength={255}
                     />
                   </div>

@@ -59,6 +59,62 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    // Distribute tip_cati to eligible users if only_celebrate is false and tip_cati > 0
+    if (!only_celebrate && tip_cati && tip_cati > 0) {
+      // Find users who have opened cards at least twice (have 2 or more UserCard records)
+      const eligibleUsers = await prisma.user.findMany({
+        where: {
+          userCards: {
+            some: {} // At least one card
+          }
+        },
+        include: {
+          _count: {
+            select: {
+              userCards: true
+            }
+          }
+        }
+      });
+
+      // Filter users who have opened cards at least twice
+      const usersWithTwoOrMoreCards = eligibleUsers.filter(user => user._count.userCards >= 2);
+      
+      if (usersWithTwoOrMoreCards.length > 0) {
+        const distributionAmount = Math.floor(tip_cati / usersWithTwoOrMoreCards.length);
+        
+        if (distributionAmount > 0) {
+          // Create a transaction to update all eligible users' balances and record transactions
+          await prisma.$transaction(async (tx) => {
+            for (const user of usersWithTwoOrMoreCards) {
+              // Update user's CATI balance
+              await tx.user.update({
+                where: { id: user.id },
+                data: {
+                  catiBalance: {
+                    increment: BigInt(distributionAmount)
+                  }
+                }
+              });
+
+              // Record the transaction
+              await tx.catiTransaction.create({
+                data: {
+                  userId: user.id,
+                  type: 'BROADCAST_TIP_RECEIVED',
+                  amount: BigInt(distributionAmount),
+                  description: `Received ${distributionAmount} CATI from broadcast tip distribution`,
+                  referenceId: cardBroadcast.id
+                }
+              });
+            }
+          });
+
+          console.log(`Distributed ${distributionAmount} CATI to ${usersWithTwoOrMoreCards.length} eligible users`);
+        }
+      }
+    }
+
     // Convert BigInt to string for JSON serialization
     const response = {
       id: cardBroadcast.id.toString(),
@@ -133,7 +189,7 @@ export async function POST(req: NextRequest) {
 
     // Send to all connected SSE clients
     console.log('Broadcasting new message to SSE clients:', broadcastData);
-    broadcastToAll(broadcastData);
+    broadcastToAll('new_broadcast', broadcastData.broadcast);
 
     return NextResponse.json(response, { status: 201 });
 
