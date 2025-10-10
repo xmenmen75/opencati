@@ -66,6 +66,9 @@ export async function POST(req: NextRequest) {
         where: {
           userCards: {
             some: {} // At least one card
+          },
+          id: {
+            not: userCard.userId // Exclude the broadcaster themselves
           }
         },
         include: {
@@ -101,7 +104,7 @@ export async function POST(req: NextRequest) {
               await tx.catiTransaction.create({
                 data: {
                   userId: user.id,
-                  type: 'BROADCAST_TIP_RECEIVED',
+                  type: 'TIP_RECEIVED',
                   amount: BigInt(distributionAmount),
                   description: `Received ${distributionAmount} CATI from broadcast tip distribution`,
                   referenceId: cardBroadcast.id
