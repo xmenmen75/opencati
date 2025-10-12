@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { addComputedStatus } from '@/lib/season-utils';
 
 export async function GET(
   request: NextRequest,
@@ -28,7 +29,8 @@ export async function GET(
       );
     }
 
-    const response = {
+    // Add computed status
+    const seasonWithComputedStatus = addComputedStatus({
       id: season.id.toString(),
       name: season.name,
       slogan: season.slogan,
@@ -38,10 +40,15 @@ export async function GET(
       endDate: season.endDate.toISOString(),
       status: season.status,
       createdAt: season.createdAt.toISOString(),
+    });
+
+    const response = {
+      ...seasonWithComputedStatus,
       cards: season.seasonCards.map(sc => ({
         id: sc.id.toString(),
         cardId: sc.cardId.toString(),
-        poolSharePercentage: sc.poolSharePercentage.toString(),
+        userBidPoolPercentage: sc.userBidPoolPercentage.toString(),
+        sponsorPoolPercentage: sc.sponsorPoolPercentage.toString(),
         dropProbability: sc.dropProbability.toString(),
         isActive: sc.isActive,
         card: {

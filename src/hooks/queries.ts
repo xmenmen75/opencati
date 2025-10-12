@@ -17,6 +17,7 @@ export const queryKeys = {
   },
   seasons: {
     active: ['seasons', 'active'] as const,
+    current: ['seasons', 'current'] as const,
     detail: (id: string) => ['seasons', 'detail', id] as const,
     rewards: ['seasons', 'rewards'] as const,
   },
@@ -177,6 +178,15 @@ export const useSeason = (seasonId: string, enabled = true) => {
     queryFn: () => seasonsApi.getSeason(seasonId),
     enabled: enabled && !!seasonId,
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useCurrentSeason = () => {
+  return useQuery({
+    queryKey: queryKeys.seasons.current,
+    queryFn: seasonsApi.getCurrentSeason,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes to check status changes
   });
 };
 

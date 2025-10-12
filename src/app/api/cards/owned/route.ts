@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyJWT } from '@/lib/auth';
+import { computeSeasonStatus } from '@/lib/season-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -93,7 +94,13 @@ export async function GET(request: NextRequest) {
           id: userCard.season.id.toString(),
           name: userCard.season.name,
           slogan: userCard.season.slogan,
-          status: userCard.season.status,
+          status: computeSeasonStatus({
+            startDate: userCard.season.startDate,
+            endDate: userCard.season.endDate,
+            status: userCard.season.status
+          }),
+          startDate: userCard.season.startDate.toISOString(),
+          endDate: userCard.season.endDate.toISOString(),
         },
       };
     });

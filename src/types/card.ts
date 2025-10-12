@@ -24,6 +24,8 @@ export interface OwnedCard {
     name: string;
     slogan: string;
     status?: string;
+    startDate: string;
+    endDate: string;
   };
 }
 

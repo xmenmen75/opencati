@@ -191,10 +191,21 @@ export const cardsApi = {
  */
 export const seasonsApi = {
   /**
-   * Get active seasons
+   * Get active seasons (backward compatibility)
    */
   getActiveSeasons: async (): Promise<import('@/types/card').Season[]> => {
     return apiClient.get('/api/seasons/active');
+  },
+
+  /**
+   * Get current season (active or most recently ended)
+   */
+  getCurrentSeason: async (): Promise<{
+    currentSeason: import('@/types/card').Season | null;
+    canOpenPacks: boolean;
+    message: string;
+  }> => {
+    return apiClient.get('/api/seasons/current');
   },
 
   /**
