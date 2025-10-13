@@ -64,32 +64,22 @@ export async function POST(req: NextRequest) {
       // Find users who have opened cards at least twice (have 2 or more UserCard records)
       const eligibleUsers = await prisma.user.findMany({
         where: {
-          userCards: {
-            some: {} // At least one card
-          },
           id: {
             not: userCard.userId // Exclude the broadcaster themselves
-          }
-        },
-        include: {
-          _count: {
-            select: {
-              userCards: true
-            }
           }
         }
       });
 
       // Filter users who have opened cards at least twice
-      const usersWithTwoOrMoreCards = eligibleUsers.filter(user => user._count.userCards >= 2);
+      const usersWithCardOpening = eligibleUsers.filter(user => user.cardOpenCount >= 2);
       
-      if (usersWithTwoOrMoreCards.length > 0) {
-        const distributionAmount = Math.floor(tip_cati / usersWithTwoOrMoreCards.length);
+      if (usersWithCardOpening.length > 0) {
+        const distributionAmount = Math.floor(tip_cati / usersWithCardOpening.length);
         
         if (distributionAmount > 0) {
           // Create a transaction to update all eligible users' balances and record transactions
           await prisma.$transaction(async (tx) => {
-            for (const user of usersWithTwoOrMoreCards) {
+            for (const user of usersWithCardOpening) {
               // Update user's CATI balance
               await tx.user.update({
                 where: { id: user.id },
@@ -113,7 +103,7 @@ export async function POST(req: NextRequest) {
             }
           });
 
-          console.log(`Distributed ${distributionAmount} CATI to ${usersWithTwoOrMoreCards.length} eligible users`);
+          console.log(`Distributed ${distributionAmount} CATI to ${usersWithCardOpening.length} eligible users`);
         }
       }
     }

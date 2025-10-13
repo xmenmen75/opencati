@@ -18,6 +18,7 @@ model User {
   language           String   @default("en") @db.VarChar(10)
   timezone           String   @default("UTC") @db.VarChar(50)
   catiBalance        BigInt   @default(0) @map("cati_balance")
+  cardOpenCount      BigInt   @default(0)
   createdAt          DateTime @default(now()) @map("created_at")
 
   // Relations

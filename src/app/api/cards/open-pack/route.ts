@@ -114,12 +114,15 @@ export async function POST(request: NextRequest) {
 
     // Start transaction - we always deduct CATI even on pack failure
     const result = await prisma.$transaction(async (tx) => {
-      // Deduct CATI from user balance
+      // Deduct CATI from user balance and increment cardOpenCount
       await tx.user.update({
         where: { id: userId },
         data: {
           catiBalance: {
             decrement: PACK_COST,
+          },
+          cardOpenCount: {
+            increment: 1,
           },
         },
       });
