@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently -k -n WEB,CRON \"next dev\" \"tsx scripts/cron.ts\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -15,7 +15,8 @@
     "test:game-logic": "tsx src/lib/__tests__/run-tests.ts",
     "test:rewards": "tsx src/lib/__tests__/reward-calculator.test.ts",
     "test:cards": "tsx src/lib/__tests__/card-selector.test.ts",
-    "test:pack-comparison": "tsx src/lib/__tests__/pack-comparison.ts"
+    "test:pack-comparison": "tsx src/lib/__tests__/pack-comparison.ts",
+    "cron": "tsx scripts/cron.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.1",
@@ -29,6 +30,7 @@
     "@types/node-cron": "^3.0.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "concurrently": "^9.2.1",
     "ethers": "^6.15.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.544.0",
