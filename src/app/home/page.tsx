@@ -238,8 +238,8 @@ function Home() {
       <CatiManagementDialog
         isOpen={isCatiManagementDialogOpen}
         onClose={() => setIsCatiManagementDialogOpen(false)}
-        onchainBalance="0.0" // TODO: Get actual onchain balance
         offchainBalance={user?.catiBalance || "0"}
+        user={user}
       />
     </div>
   );

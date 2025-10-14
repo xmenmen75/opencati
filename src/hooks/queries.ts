@@ -228,6 +228,22 @@ export const useCreateWithdrawal = () => {
   });
 };
 
+export const useCreateDeposit = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: transactionsApi.createDeposit,
+    onSuccess: () => {
+      // Invalidate transactions to show the new deposit
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      
+      // Invalidate user data to update balance
+      queryClient.invalidateQueries({ queryKey: queryKeys.user.profile });
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
+    },
+  });
+};
+
 /**
  * Utility hooks for common patterns
  */
