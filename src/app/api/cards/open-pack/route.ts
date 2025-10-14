@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyJWT } from '@/lib/auth';
 import { selectRandomCard, type SeasonCardWithProbability } from '@/lib/card-selector';
+import { addComputedStatusToSeasons } from '@/lib/season-utils';
 
 // CATI cost per pack opening (reasonable amount)
 const PACK_COST = BigInt('500'); // 500 CATI
@@ -57,14 +58,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get active season
-    const activeSeason = await prisma.season.findFirst({
-      where: { status: 'ACTIVE' },
+    // Get all seasons to find currently active one
+    const allSeasons = await prisma.season.findMany({
+      orderBy: {
+        startDate: 'desc',
+      },
     });
 
+    // Find truly active season using computed status
+    const seasonsWithStatus = addComputedStatusToSeasons(
+      allSeasons.map(season => ({
+        ...season,
+        startDate: season.startDate.toISOString(),
+        endDate: season.endDate.toISOString(),
+      }))
+    );
+
+    const activeSeason = seasonsWithStatus.find(s => s.status === 'ACTIVE');
+    
     if (!activeSeason) {
       return NextResponse.json(
-        { error: 'No active season found' },
+        { error: 'No active season found. Pack opening is only available during active seasons.' },
+        { status: 400 }
+      );
+    }
+
+    // Get the actual season object for database queries
+    const actualSeason = allSeasons.find(s => s.id === BigInt(activeSeason.id));
+    
+    if (!actualSeason) {
+      return NextResponse.json(
+        { error: 'Season data error' },
         { status: 500 }
       );
     }
@@ -72,7 +96,7 @@ export async function POST(request: NextRequest) {
     // Get all available cards for the active season
     const seasonCards = await prisma.seasonCard.findMany({
       where: { 
-        seasonId: activeSeason.id,
+        seasonId: actualSeason.id,
         isActive: true 
       },
       include: {
@@ -114,12 +138,15 @@ export async function POST(request: NextRequest) {
 
     // Start transaction - we always deduct CATI even on pack failure
     const result = await prisma.$transaction(async (tx) => {
-      // Deduct CATI from user balance
+      // Deduct CATI from user balance and increment cardOpenCount
       await tx.user.update({
         where: { id: userId },
         data: {
           catiBalance: {
             decrement: PACK_COST,
+          },
+          cardOpenCount: {
+            increment: 1,
           },
         },
       });
@@ -127,6 +154,16 @@ export async function POST(request: NextRequest) {
       // Update season bid pool amount (always, regardless of card win/loss)
       await tx.season.update({
         where: { id: activeSeason.id },
+        data: {
+          bidPoolAmount: {
+            increment: PACK_COST,
+          },
+        },
+      });
+
+      // Update season bid pool amount (always, regardless of card win/loss)
+      await tx.season.update({
+        where: { id: actualSeason.id },
         data: {
           bidPoolAmount: {
             increment: PACK_COST,
@@ -157,10 +194,10 @@ export async function POST(request: NextRequest) {
         const userCard = await tx.userCard.create({
           data: {
             userId: userId,
-            cardId: selectedCard.id,
-            seasonId: activeSeason.id,
+            cardId: cardResult.card!.id,
+            seasonId: actualSeason.id,
             catiSpent: catiSpent,
-            catiReward: BigInt('0'), // Will be calculated in recalculateSeasonRewards
+            catiReward: BigInt(0), // Initial reward, will be calculated by cron
           },
         });
 
@@ -183,10 +220,10 @@ export async function POST(request: NextRequest) {
 
         // Note: CATI rewards will be calculated by cron jobs every 5 minutes
         // Return the user card with initial 0 reward
-        return { success: true, userCard, selectedCard, activeSeason };
+        return { success: true, userCard, selectedCard, activeSeason: actualSeason };
       } else {
         // Pack failed - no card won
-        return { success: false, failureReason: cardResult.failureReason, activeSeason };
+        return { success: false, failureReason: cardResult.failureReason, activeSeason: actualSeason };
       }
     });
 
@@ -206,11 +243,12 @@ export async function POST(request: NextRequest) {
           catiReward: result.userCard!.catiReward.toString(),
           acquiredAt: result.userCard!.acquiredAt.toISOString(),
           season: {
-            id: activeSeason.id.toString(),
-            name: activeSeason.name,
-            slogan: activeSeason.slogan,
+            id: actualSeason.id.toString(),
+            name: actualSeason.name,
+            slogan: actualSeason.slogan,
           },
         },
+        userCardId: result.userCard!.id.toString(),
         newBalance: (user.catiBalance - PACK_COST).toString(),
       });
     } else {
@@ -221,9 +259,9 @@ export async function POST(request: NextRequest) {
         message: "Pack opened but no card was won. Your CATI has been spent but better luck next time!",
         newBalance: (user.catiBalance - PACK_COST).toString(),
         season: {
-          id: activeSeason.id.toString(),
-          name: activeSeason.name,
-          slogan: activeSeason.slogan,
+          id: actualSeason.id.toString(),
+          name: actualSeason.name,
+          slogan: actualSeason.slogan,
         },
       });
     }

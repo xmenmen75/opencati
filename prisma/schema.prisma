@@ -18,6 +18,7 @@ model User {
   language           String   @default("en") @db.VarChar(10)
   timezone           String   @default("UTC") @db.VarChar(50)
   catiBalance        BigInt   @default(0) @map("cati_balance")
+  cardOpenCount      BigInt   @default(0)
   createdAt          DateTime @default(now()) @map("created_at")
 
   // Relations
@@ -27,6 +28,9 @@ model User {
   withdrawals       Withdrawal[]
   deposits          Deposit[]
   authSessions      AuthSession[]
+  sentMessages      Message[] @relation("msg_sender")
+  receivedMessages  Message[] @relation("msg_receiver")
+  replySent         MessageReply[]  @relation("msg_reply_sender")
 
   @@map("users")
 }
@@ -45,6 +49,65 @@ model Card {
   seasonCards  SeasonCard[]
 
   @@map("cards")
+}
+
+model CardBroadcast {
+  id              BigInt       @id @default(autoincrement())
+  user_card_id    BigInt    @map("user_card_id")
+  content         String    @db.VarChar(255)
+  tip_cati        Int       @default(0)
+  only_celebrate  Boolean   @default(false)
+  tip_distributed Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  userCard UserCard @relation(fields: [user_card_id], references: [id])
+  messages Message[]
+  @@map("card_broadcasts")
+}
+
+enum MessageReaction {
+  HEART
+  CONFETTI
+  THUMBSUP
+}
+
+model Message {
+  id                BigInt        @id @default(autoincrement())
+  senderId          BigInt        @map("sender_id")
+  receiverId        BigInt        @map("receiver_id")
+  broadcastId       BigInt        @map("broadcast_id")
+  content           String        @db.Text
+  hasReply          Boolean       @default(false) @map("has_reply")
+  senderDeletedAt   DateTime?     @map("sender_deleted_at")
+  receiverDeletedAt DateTime?     @map("receiver_deleted_at")
+  seenAt            DateTime?     @map("seen_at")
+  reaction          MessageReaction? @map("reaction")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @default(now()) @map("updated_at")
+
+  sender            User          @relation("msg_sender",   fields: [senderId], references: [id])
+  receiver          User          @relation("msg_receiver", fields: [receiverId], references: [id])
+  broadcast         CardBroadcast @relation(fields: [broadcastId], references: [id])
+  messageReply      MessageReply?
+
+  @@map("messages")
+}
+
+model MessageReply {
+  id          BigInt   @id @default(autoincrement())
+  messageId   BigInt   @map("message_id")
+  senderId    BigInt   @map("sender_id")
+  content     String   @db.VarChar(255)
+  seenAt      DateTime?                @map("seen_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  message     Message  @relation(fields: [messageId], references: [id])
+  sender      User     @relation("msg_reply_sender", fields: [senderId], references: [id])
+
+  @@unique([messageId])
+  @@map("message_replies")
 }
 
 model Season {
@@ -97,6 +160,7 @@ model UserCard {
   user   User   @relation(fields: [userId], references: [id])
   card   Card   @relation(fields: [cardId], references: [id])
   season Season @relation(fields: [seasonId], references: [id])
+  broadcasts CardBroadcast[]
 
   @@map("user_cards")
 }
@@ -121,7 +185,7 @@ model SeasonReward {
 model CatiTransaction {
   id          BigInt   @id @default(autoincrement())
   userId      BigInt   @map("user_id")
-  type        String   @db.VarChar(20) // SPEND_DRAW, SEASON_REWARD, WITHDRAW, DEPOSIT
+  type        String   @db.VarChar(20) // SPEND_DRAW, SEASON_REWARD, WITHDRAW, DEPOSIT, CELEBRATION_TIP
   amount      BigInt   // Positive for credits, negative for debits
   description String   @db.VarChar(255)
   referenceId BigInt?  @map("reference_id") // References user_card_id, season_id, etc.

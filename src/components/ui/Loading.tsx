@@ -40,7 +40,7 @@ export function LoadingCard({ className = '' }: { className?: string }) {
 
 export function LoadingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#362A85] to-[#7F174C] flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-r from-[#08080A] to-[#160218] flex items-center justify-center">
       <Loading size="lg" text="Loading OpenCATI..." />
     </div>
   );

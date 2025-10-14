@@ -24,6 +24,8 @@ export interface OwnedCard {
     name: string;
     slogan: string;
     status?: string;
+    startDate: string;
+    endDate: string;
   };
 }
 
@@ -57,6 +59,7 @@ export interface CardProbability {
 
 export interface PackOpeningResult {
   card: Card;
+  userCardId: string;
 }
 
 export interface PackOpenResponse {
@@ -80,6 +83,7 @@ export interface PackOpenResponse {
       slogan: string;
     };
   };
+  userCardId?: string;
   failureReason?: string;
   message?: string;
   newBalance: string;

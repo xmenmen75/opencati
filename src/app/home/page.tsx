@@ -6,10 +6,11 @@ import { TopBar } from '@/app/home/_components/TopBar';
 import { OwnedCardsDialog } from '@/app/home/_components/OwnedCardsDialog';
 import { SettingsDialog } from '@/app/home/_components/SettingsDialog';
 import { CatiManagementDialog } from '@/app/home/_components/CatiManagementDialog';
+import BroadcastChannel from '@/app/home/_components/BroadcastChannel';
 import { LoadingPage } from '@/components/ui/Loading';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '../hooks/useWallet';
-import { useOwnedCards, useSeasonRewards } from '@/hooks/queries';
+import { useOwnedCards, useSeasonRewards, useActiveSeasons, useCurrentSeason } from '@/hooks/queries';
 
 function Home() {
   const { walletState, user, isAuthenticated, connectWallet, disconnectWallet, isCorrectNetwork, authError, clearAuthError, authLoading, cancelAuthentication } = useWallet();
@@ -28,6 +29,10 @@ function Home() {
   const { data: seasonRewards, isLoading: seasonRewardsLoading } = useSeasonRewards({
     enabled: shouldFetchData
   });
+  
+  // Use React Query to fetch current season (active or most recently ended)
+  const { data: currentSeasonData } = useCurrentSeason();
+  const { data: activeSeasons } = useActiveSeasons(); // Keep for backward compatibility
   
   // Keep stable data during pack animation
   const [stableOwnedCardsData, setStableOwnedCardsData] = useState<typeof ownedCardsData>(undefined);
@@ -54,10 +59,12 @@ function Home() {
   };
 
   // Check if user can access the game interface (wallet connected, authenticated, correct network)
-  const canAccessGame = walletState.isConnected && isAuthenticated && isCorrectNetwork && user;
+  const canAccessGame = walletState.isConnected && isAuthenticated && isCorrectNetwork && !!user;
   
-  // Check if user can open packs (needs CATI balance > 0)
-  const canOpenPacks = canAccessGame && user && parseInt(user.catiBalance) > 0;
+  // Check if user can open packs (needs active season and enough balance)
+  const hasActiveSeason = currentSeasonData?.canOpenPacks ?? false;
+  const hasEnoughBalance = user && parseInt(user.catiBalance) >= 500;
+  const canOpenPacks = canAccessGame && hasActiveSeason && hasEnoughBalance;
   
   // Check if wallet connection/auth is in progress
   const isLoading = walletState.isConnecting || authLoading;
@@ -102,8 +109,11 @@ function Home() {
       <div className="flex-1">
         {canAccessGame ? (
           <PackOpening 
-            canOpenPacks={canOpenPacks || false} 
+            canOpenPacks={canOpenPacks ?? false} 
             onAnimationStateChange={setIsPackAnimating}
+            activeSeason={currentSeasonData?.currentSeason || activeSeasons?.[0]}
+            hasActiveSeason={hasActiveSeason}
+            hasEnoughBalance={hasEnoughBalance ?? false}
           />
         ) : (
           <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
@@ -209,7 +219,13 @@ function Home() {
             </div>
           </div>
         )}
+        
       </div>
+
+      {/* Broadcast Channel - Fixed at bottom. only logged in users can see it */}
+      {isAuthenticated && user && (
+        <BroadcastChannel className="fixed bottom-0 left-0 right-0 z-10" />
+      )}
 
       {/* Owned Cards Dialog */}
       <OwnedCardsDialog
@@ -229,8 +245,8 @@ function Home() {
       <CatiManagementDialog
         isOpen={isCatiManagementDialogOpen}
         onClose={() => setIsCatiManagementDialogOpen(false)}
-        onchainBalance="0.0" // TODO: Get actual onchain balance
         offchainBalance={user?.catiBalance || "0"}
+        user={user}
       />
     </div>
   );
