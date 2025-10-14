@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { calculateSeasonRewardsWithSeasonCards } from '@/lib/reward-calculator';
+import { addComputedStatusToSeasons } from '@/lib/season-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,10 +18,21 @@ export async function POST(request: NextRequest) {
 
     console.log('[CRON] Starting reward calculation...');
 
-    // Get all active seasons
-    const activeSeasons = await prisma.season.findMany({
-      where: { status: 'ACTIVE' },
-    });
+    // Get all seasons and compute which are actually active
+    const allSeasons = await prisma.season.findMany();
+    
+    const seasonsWithStatus = addComputedStatusToSeasons(
+      allSeasons.map(season => ({
+        ...season,
+        startDate: season.startDate.toISOString(),
+        endDate: season.endDate.toISOString(),
+      }))
+    );
+    
+    const activeSeasons = seasonsWithStatus
+      .filter(s => s.status === 'ACTIVE')
+      .map(s => allSeasons.find(orig => orig.id === BigInt(s.id))!)
+      .filter(Boolean);
 
     let totalUpdatedSeasons = 0;
     let totalUpdatedUserCards = 0;

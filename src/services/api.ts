@@ -191,10 +191,21 @@ export const cardsApi = {
  */
 export const seasonsApi = {
   /**
-   * Get active seasons
+   * Get active seasons (backward compatibility)
    */
   getActiveSeasons: async (): Promise<import('@/types/card').Season[]> => {
     return apiClient.get('/api/seasons/active');
+  },
+
+  /**
+   * Get current season (active or most recently ended)
+   */
+  getCurrentSeason: async (): Promise<{
+    currentSeason: import('@/types/card').Season | null;
+    canOpenPacks: boolean;
+    message: string;
+  }> => {
+    return apiClient.get('/api/seasons/current');
   },
 
   /**
@@ -248,6 +259,35 @@ export interface TransactionResponse {
 }
 
 /**
+ * Deposit/Withdrawal response types
+ */
+export interface WithdrawalResponse {
+  success: boolean;
+  withdrawal: {
+    id: string;
+    amount: string;
+    status: string;
+    requestedAt: string;
+  };
+  newBalance: string;
+  message: string;
+}
+
+export interface DepositResponse {
+  success: boolean;
+  deposit: {
+    id: string;
+    amount: string;
+    status: string;
+    requestedAt: string;
+    completedAt?: string;
+    txHash?: string;
+  };
+  newBalance: string;
+  message: string;
+}
+
+/**
  * Transactions API functions
  */
 export const transactionsApi = {
@@ -261,7 +301,14 @@ export const transactionsApi = {
   /**
    * Create a withdrawal request
    */
-  createWithdrawal: async (data: { amount: string; toAddress: string }): Promise<unknown> => {
+  createWithdrawal: async (data: { amount: string; toAddress: string }): Promise<WithdrawalResponse> => {
     return apiClient.post('/api/transactions/withdraw', data);
+  },
+
+  /**
+   * Create a deposit request (requires transaction hash for verification)
+   */
+  createDeposit: async (data: { amount: string; fromAddress: string; txHash: string }): Promise<DepositResponse> => {
+    return apiClient.post('/api/transactions/deposit', data);
   },
 };

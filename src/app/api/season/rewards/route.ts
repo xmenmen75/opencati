@@ -1,23 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentSeason } from '@/lib/season-utils';
 
 export async function GET() {
   try {
-    // Get active season
-    const activeSeason = await prisma.season.findFirst({
-      where: { status: 'ACTIVE' },
+    // Get all seasons to find current one (active or most recently ended)
+    const allSeasons = await prisma.season.findMany({
+      orderBy: {
+        startDate: 'desc',
+      },
     });
 
-    if (!activeSeason) {
+    if (allSeasons.length === 0) {
       return NextResponse.json(
-        { error: 'No active season found' },
+        { error: 'No seasons found' },
         { status: 404 }
+      );
+    }
+
+    // Find current season using computed status (active or most recently ended)
+    const seasonsForComputation = allSeasons.map(season => ({
+      ...season,
+      startDate: season.startDate.toISOString(),
+      endDate: season.endDate.toISOString(),
+      createdAt: season.createdAt.toISOString(),
+    }));
+    
+    const currentSeasonData = getCurrentSeason(seasonsForComputation);
+
+    if (!currentSeasonData) {
+      return NextResponse.json(
+        { error: 'No current season found' },
+        { status: 404 }
+      );
+    }
+
+    // Get the actual season object for database queries
+    const currentSeason = allSeasons.find(s => s.id === BigInt(currentSeasonData.id));
+    
+    if (!currentSeason) {
+      return NextResponse.json(
+        { error: 'Season data inconsistency' },
+        { status: 500 }
       );
     }
 
     // Get all user cards for this season with card and user details
     const userCards = await prisma.userCard.findMany({
-      where: { seasonId: activeSeason.id },
+      where: { seasonId: currentSeason.id },
       include: {
         card: true,
         user: {
@@ -34,7 +64,7 @@ export async function GET() {
 
     // Get season rewards
     const seasonRewards = await prisma.seasonReward.findMany({
-      where: { seasonId: activeSeason.id },
+      where: { seasonId: currentSeason.id },
       include: {
         user: {
           select: {
@@ -50,13 +80,13 @@ export async function GET() {
 
     // Calculate pool information using new dual-percentage system
     const totalSpent = userCards.reduce((sum, userCard) => sum + userCard.catiSpent, BigInt(0));
-    const totalSponsorPool = activeSeason.additionalTotalPool;
+    const totalSponsorPool = currentSeason.additionalTotalPool;
     const totalPool = totalSpent + totalSponsorPool;
 
     // Get season card data to understand reward distribution
     const seasonCards = await prisma.seasonCard.findMany({
       where: {
-        seasonId: activeSeason.id,
+        seasonId: currentSeason.id,
         isActive: true,
       },
       include: {
@@ -133,19 +163,20 @@ export async function GET() {
 
     const response = {
       season: {
-        id: activeSeason.id.toString(),
-        name: activeSeason.name,
-        slogan: activeSeason.slogan,
+        id: currentSeason.id.toString(),
+        name: currentSeason.name,
+        slogan: currentSeason.slogan,
         sponsorAmount: totalSponsorPool.toString(),
-        bidPoolAmount: activeSeason.bidPoolAmount.toString(),
-        additionalTotalPool: activeSeason.additionalTotalPool.toString(),
+        bidPoolAmount: currentSeason.bidPoolAmount.toString(),
+        additionalTotalPool: currentSeason.additionalTotalPool.toString(),
+        status: currentSeasonData.status, // Include computed status in response
       },
       poolInfo: {
         totalPool: totalPool.toString(),
         totalSpent: totalSpent.toString(),
         totalSponsorPool: totalSponsorPool.toString(),
-        bidPoolAmount: activeSeason.bidPoolAmount.toString(),
-        additionalTotalPool: activeSeason.additionalTotalPool.toString(),
+        bidPoolAmount: currentSeason.bidPoolAmount.toString(),
+        additionalTotalPool: currentSeason.additionalTotalPool.toString(),
         userBidRewards: cardRewardInfo.reduce((sum, card) => sum + card.userBidReward, BigInt(0)).toString(),
         sponsorRewards: cardRewardInfo.reduce((sum, card) => sum + card.sponsorReward, BigInt(0)).toString(),
         cardRewards: cardRewardInfo.map(card => ({

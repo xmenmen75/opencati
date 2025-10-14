@@ -6,19 +6,51 @@ import { cn } from '@/lib/utils';
 import { usePackOpening } from '@/app/hooks/usePackOpening';
 import CardPickerImage from '@/../public/images/card-picker.png';
 import Image from 'next/image';
+import { Season } from '@/types/card';
+import { Clock } from 'lucide-react';
 
 interface PackOpeningProps {
   className?: string;
   canOpenPacks?: boolean;
   onAnimationStateChange?: (isAnimating: boolean) => void;
+  activeSeason?: Season;
+  hasActiveSeason?: boolean;
+  hasEnoughBalance?: boolean;
 }
 
-export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPacks = true, onAnimationStateChange }) => {
+export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPacks = true, onAnimationStateChange, activeSeason, hasActiveSeason, hasEnoughBalance }) => {
   const { isOpening, result, failureResult, openPack, resetResult, error } = usePackOpening();
   const [isAnimating, setIsAnimating] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [showAcquiredDialog, setShowAcquiredDialog] = useState(false);
   const [selectedUserCardId, setSelectedUserCardId] = useState<string>('');
+
+  // Format the season end date
+  const formatSeasonEndDate = (endDateString?: string) => {
+    if (!endDateString) return null;
+    
+    const endDate = new Date(endDateString);
+    const now = new Date();
+    
+    // If season has ended, show "Season Ended"
+    if (endDate <= now) {
+      return "Season Ended";
+    }
+    
+    // Format: "Sep 15, 2024 20:00 UTC" with 24-hour format
+    const options: Intl.DateTimeFormatOptions = {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false, // Use 24-hour format
+      timeZone: 'UTC',
+      timeZoneName: 'short'
+    };
+    
+    return endDate.toLocaleDateString('en-US', options);
+  };
 
   // Handle pack opening with animation
   const handleCardClick = async () => {
@@ -60,7 +92,36 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
       className
     )}>
       <div className="max-w-4xl w-full space-y-8">
-
+        {/* Season End Time Display */}
+        {activeSeason && (
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 backdrop-blur-sm border border-purple-400/50 rounded-lg">
+              <Clock className="w-4 h-4 text-purple-200" />
+              <span className="text-purple-200 text-sm font-medium">
+                Close: {formatSeasonEndDate(activeSeason.endDate)}
+              </span>
+            </div>
+            
+            {/* Pack Opening Status */}
+            {!canOpenPacks && !isAnimating && !showResult && (
+              <div className="text-center">
+                {!hasActiveSeason ? (
+                  <div className="px-4 py-2 bg-orange-500/20 border border-orange-400/50 rounded-lg">
+                    <p className="text-orange-200 text-sm font-medium">
+                      Season has ended. Wait for the next season to open packs.
+                    </p>
+                  </div>
+                ) : !hasEnoughBalance ? (
+                  <div className="px-4 py-2 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
+                    <p className="text-yellow-200 text-sm font-medium">
+                      You need at least 500 CATI to open a pack.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Main Content Area */}
         <div className="flex flex-col items-center justify-center space-y-8">
@@ -128,49 +189,11 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
               </div>
             )}
 
-            {/* Instructions */}
-            {!isAnimating && !showResult && !canOpenPacks && (
-              <div className="text-center text-white/70 max-w-md">
-                <div className="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
-                  <p className="text-yellow-200 font-medium">
-                    You need at least 500 CATI to open a pack
-                  </p>
-                </div>
-              </div>
-            )}
 
-            {/* Action buttons when result is shown - REMOVED */}
-            {/* Remove buttons, only keep card image for interaction */}
 
-            {/* Error handling - REMOVED, only card image for interaction */}
-            {/* {error && showResult && (
-              <div className="text-center p-4 bg-red-500/20 border border-red-500/50 rounded-lg max-w-md">
-                <p className="text-red-200 font-medium mb-2">Error: {error}</p>
-                <Button
-                  onClick={resetResult}
-                  variant="outline"
-                  className="border-red-500/50 text-red-200 hover:bg-red-500/10"
-                >
-                  Try Again
-                </Button>
-              </div>
-            )} */}
 
-            {/* Show won card below - remove since we show it above */}
-            {/* {showResult && result && (
-              <div className="mt-8">
-                <CardDisplay
-                  card={result.card}
-                  className="transform animate-fade-in-up"
-                />
-              </div>
-            )} */}
           </div>
         </div>
-
-        {/* <div className="text-center text-gray-600 text-sm">
-          <p>Each pack contains one random card based on the probability rates shown.</p>
-        </div> */}
       </div>
     </div>
   );
