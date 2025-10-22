@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { GlobalErrorBoundary } from "@/components/providers/GlobalErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
-import "@/lib/startup"; // Initialize cron jobs on startup
 import "./globals.css";
 
 const geistSans = Geist({
