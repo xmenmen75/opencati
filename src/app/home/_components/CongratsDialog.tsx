@@ -59,7 +59,7 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
 
     try {
       // Prepare message content with reaction if selected
-      let messageContent = message.trim();
+      const messageContent = message.trim();
 
       const payload = {
         broadcastId,

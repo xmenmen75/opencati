@@ -145,7 +145,8 @@ for (let round = 0; round < PLAYS_PER_PLAYER; round++) {
     }
     
     // Recalculate rewards after each event using the actual reward calculator
-    const rewardResult = calculateSeasonRewards(gameState.userCards, SEASON_DATA);
+    // Need to replace [] with season cards.
+    const rewardResult = calculateSeasonRewards(gameState.userCards,[], SEASON_DATA);
     
     // Update player rewards from calculation result
     PLAYERS.forEach(playerName => {

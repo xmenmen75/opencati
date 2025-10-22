@@ -48,6 +48,3 @@ export async function GET(request: NextRequest) {
     },
   });
 }
-
-// Re-export the broadcast function from the manager
-export { broadcastToAll, getConnectionCount } from '@/lib/sse-manager';

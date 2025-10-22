@@ -3,40 +3,39 @@ import { CardRank } from '@/types/card';
 import { prisma } from '@/lib/prisma';
 
 export class CardService {
-  static async getCardProbabilities(): Promise<CardProbability[]> {
-    try {
-      const cards = await prisma.card.findMany({
-        select: {
-          rank: true,
-          poolSharePercentage: true,
-        },
-      });
+  // static async getCardProbabilities(): Promise<CardProbability[]> {
+  //   try {
+  //     const cards = await prisma.card.findMany({
+  //       select: {
+  //         rank: true
+  //       },
+  //     });
 
-      // Group by rank and calculate total probabilities
-      const probabilitiesByRank = cards.reduce((acc, card) => {
-        const rank = card.rank as CardRank;
-        const probability = Number(card.poolSharePercentage) / 100; // Convert percentage to decimal
+  //     // Group by rank and calculate total probabilities
+  //     const probabilitiesByRank = cards.reduce((acc, card) => {
+  //       const rank = card.rank as CardRank;
+  //       const probability = Number(card.poolSharePercentage) / 100; // Convert percentage to decimal
         
-        if (!acc[rank]) {
-          acc[rank] = {
-            rank,
-            probability: 0,
-            color: this.getColorByRank(rank),
-            glowColor: this.getGlowColorByRank(rank),
-          };
-        }
+  //       if (!acc[rank]) {
+  //         acc[rank] = {
+  //           rank,
+  //           probability: 0,
+  //           color: this.getColorByRank(rank),
+  //           glowColor: this.getGlowColorByRank(rank),
+  //         };
+  //       }
         
-        acc[rank].probability += probability;
-        return acc;
-      }, {} as Record<CardRank, CardProbability>);
+  //       acc[rank].probability += probability;
+  //       return acc;
+  //     }, {} as Record<CardRank, CardProbability>);
 
-      return Object.values(probabilitiesByRank);
-    } catch (error) {
-      console.error('Error fetching card probabilities:', error);
-      // Fallback to default probabilities
-      return this.getDefaultProbabilities();
-    }
-  }
+  //     return Object.values(probabilitiesByRank);
+  //   } catch (error) {
+  //     console.error('Error fetching card probabilities:', error);
+  //     // Fallback to default probabilities
+  //     return this.getDefaultProbabilities();
+  //   }
+  // }
 
   static getCardProbability(rank: CardRank): CardProbability | undefined {
     // This is now async, so you should use getCardProbabilities() instead

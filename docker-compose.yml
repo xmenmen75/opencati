@@ -1,0 +1,19 @@
+services:
+  app-staging:
+    image: swr.cn-hongkong.myhuaweicloud.com/opencati/opencati:staging-latest
+    restart: unless-stopped
+    env_file: .env.staging
+    ports:
+      - "3001:3000"    # staging on 3001
+    # the ENTRYPOINT will run migrate/seed then start Next.js
+
+  cron-staging:
+    image: swr.cn-hongkong.myhuaweicloud.com/opencati/opencati:staging-latest
+    restart: unless-stopped
+    env_file: .env.staging
+    # Run only the cron worker (no web server)
+    entrypoint: ["/bin/sh", "-lc"]
+    command: ["echo '→ starting cron'; tsx scripts/cron.ts"]
+    # If cron should start only after DB is ready, you can add:
+    # depends_on:
+    #   - app-staging

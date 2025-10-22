@@ -4,10 +4,11 @@ import { addComputedStatus } from '@/lib/season-utils';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { seasonId: string } }
+  { params }: { params: Promise<{ seasonId: string }> }
 ) {
   try {
-    const seasonId = BigInt(params.seasonId);
+    const { seasonId: seasonIdParam } = await params;
+    const seasonId = BigInt(seasonIdParam);
 
     const season = await prisma.season.findUnique({
       where: {
