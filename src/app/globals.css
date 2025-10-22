@@ -173,4 +173,31 @@
   .animate-spin-ease {
     animation: spin-ease 4s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
   }
+
+  /* Animation delay utilities */
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animation-delay-600 {
+    animation-delay: 600ms;
+  }
+
+  /* Pack glow effect */
+  @keyframes pack-glow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(168, 85, 247, 0.6), 0 0 80px rgba(168, 85, 247, 0.2);
+    }
+  }
+
+  .animate-pack-glow {
+    animation: pack-glow 3s ease-in-out infinite;
+  }
 }

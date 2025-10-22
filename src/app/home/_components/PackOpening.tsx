@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CardDisplay } from '@/app/home/_components/CardDisplay';
 import { AcquiredCardDialog } from '@/app/home/_components/AcquiredCardDialog';
+import { PackOpeningAnimation } from '@/app/home/_components/PackOpeningAnimation';
 import { cn } from '@/lib/utils';
 import { usePackOpening } from '@/app/hooks/usePackOpening';
 import CardPickerImage from '@/../public/images/card-picker.png';
@@ -94,7 +95,7 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
       <div className="max-w-4xl w-full space-y-8">
         {/* Season End Time Display */}
         {activeSeason && (
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-3 animate-fade-in-down">
             <div className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 backdrop-blur-sm border border-purple-400/50 rounded-lg">
               <Clock className="w-4 h-4 text-purple-200" />
               <span className="text-purple-200 text-sm font-medium">
@@ -104,7 +105,7 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
             
             {/* Pack Opening Status */}
             {!canOpenPacks && !isAnimating && !showResult && (
-              <div className="text-center">
+              <div className="text-center animate-fade-in-up animation-delay-200">
                 {!hasActiveSeason ? (
                   <div className="px-4 py-2 bg-orange-500/20 border border-orange-400/50 rounded-lg">
                     <p className="text-orange-200 text-sm font-medium">
@@ -126,7 +127,7 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
         {/* Main Content Area */}
         <div className="flex flex-col items-center justify-center space-y-8">
           {/* Card Pack Image */}
-          <div className="relative flex flex-col items-center space-y-6">
+          <div className="relative flex flex-col items-center space-y-6 animate-fade-in-up animation-delay-400">
             {/* The rotating card image */}
             <Image
               src={CardPickerImage}
@@ -135,28 +136,39 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
               className={cn(
               "relative w-[70vw] max-w-[500px] h-auto cursor-pointer transform transition-all duration-300 hover:scale-105 rounded-xl",
               isAnimating && "animate-spin-ease",
-              !canOpenPacks && "opacity-50 cursor-not-allowed"
+              !canOpenPacks && "opacity-50 cursor-not-allowed",
+              !isAnimating && !showResult && canOpenPacks && "hover:animate-pulse animate-pack-glow"
               )}
               width={384}
               height={288}
             />
 
+            {/* Party Popper Animation for SS Rank Cards */}
+            <PackOpeningAnimation 
+              isOpening={isAnimating || showResult}
+              gachaResult={result?.card}
+              showResult={showResult}
+              className="absolute inset-0 z-20 pointer-events-none"
+            />
+
             {/* Result overlay - Show actual card instead of message */}
             {showResult && result && (
-              <CardDisplay
-                card={result.card}
-                className="transform scale-75"
-                isOpen={showResult}
-                onClose={() => {
-                  setShowResult(false);
-                  resetResult();
-                }}
-                onCardClick={(userCardId) => {
-                  setSelectedUserCardId(userCardId);
-                  setShowAcquiredDialog(true);
-                }}
-                userCardId={result.userCardId}
-              />
+              <div className="animate-fade-in-up">
+                <CardDisplay
+                  card={result.card}
+                  className="transform scale-75"
+                  isOpen={showResult}
+                  onClose={() => {
+                    setShowResult(false);
+                    resetResult();
+                  }}
+                  onCardClick={(userCardId) => {
+                    setSelectedUserCardId(userCardId);
+                    setShowAcquiredDialog(true);
+                  }}
+                  userCardId={result.userCardId}
+                />
+              </div>
             )}
 
             {/* Acquired Card Dialog */}
@@ -168,7 +180,7 @@ export const PackOpening: React.FC<PackOpeningProps> = ({ className, canOpenPack
 
             {/* Failure and error overlays */}
             {showResult && (failureResult || error) && (
-              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-10">
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-10 animate-fade-in-down">
                 {failureResult && (
                   <div className="bg-orange-500/90 backdrop-blur-sm text-white px-6 py-3 rounded-full shadow-lg border border-orange-400">
                     <div className="flex items-center space-x-2">
