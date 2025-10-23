@@ -17,7 +17,8 @@
     "test:rewards": "tsx src/lib/__tests__/reward-calculator.test.ts",
     "test:cards": "tsx src/lib/__tests__/card-selector.test.ts",
     "test:pack-comparison": "tsx src/lib/__tests__/pack-comparison.ts",
-    "cron": "tsx scripts/cron.ts"
+    "cron": "tsx scripts/cron.ts",
+    "build:cron": "tsc -p tsconfig.cron.json"
   },
   "dependencies": {
     "@prisma/client": "^6.16.1",
