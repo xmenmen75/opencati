@@ -2,9 +2,32 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { broadcastToAll } from "@/lib/sse-manager";
+import { verifyJWT } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    // Authenticate the user
+    const authHeader = req.headers.get('authorization');
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'No authorization token provided' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = verifyJWT(token);
+    
+    if (!decoded) {
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+
+    const authenticatedUserId = BigInt(decoded.sub);
+
     const { user_card_id, content, only_celebrate, tip_cati } = await req.json();
 
     // Validate required fields
@@ -23,7 +46,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify that the user_card exists
+    // Verify that the user_card exists and belongs to the authenticated user
     const userCard = await prisma.userCard.findUnique({
       where: { id: BigInt(user_card_id) },
       include: {
@@ -37,6 +60,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "User card not found" },
         { status: 404 }
+      );
+    }
+
+    // Verify the card belongs to the authenticated user
+    if (userCard.userId !== authenticatedUserId) {
+      return NextResponse.json(
+        { error: "Unauthorized to broadcast this card" },
+        { status: 403 }
       );
     }
 
