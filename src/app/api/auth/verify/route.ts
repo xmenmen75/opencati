@@ -3,6 +3,7 @@ import { SiweMessage } from 'siwe';
 import { ethers } from 'ethers';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: NextRequest) {
   try {
@@ -102,9 +103,9 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       console.log('Creating new user for address:', checksummedAddress);
-      
-      // Use default nickname "Opencatier"
-      const nickname = 'Opencatier';
+
+      const randomUuid = uuidv4().slice(0, 5);
+      const nickname = `User_${randomUuid}`;
 
       user = await prisma.user.create({
         data: {
