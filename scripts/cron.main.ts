@@ -1,7 +1,4 @@
-// scripts/cron.ts
-import 'dotenv/config';
-
-import { cronManager } from '@/lib/cron-manager';
+import { cronManager } from '../src/lib/cron-manager';
 
 (async () => {
   try {

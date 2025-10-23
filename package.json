@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -k -n WEB,CRON \"next dev\" \"tsx scripts/cron.ts\"",
+    "dev": "concurrently -k -n WEB,CRON \"next dev\" \"tsx scripts/cron.dev.ts\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
