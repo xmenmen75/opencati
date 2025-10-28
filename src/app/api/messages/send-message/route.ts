@@ -90,16 +90,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Start a transaction to handle message creation and CATI transfer
+    // Always create a new thread and message
     const result = await prisma.$transaction(async (tx) => {
-      // Create the message
-      const message = await tx.message.create({
+      // Create the thread
+      const thread = await tx.thread.create({
         data: {
           senderId,
           receiverId,
           broadcastId: BigInt(broadcastId),
-          content: content.trim(),
-          reaction: reaction || null
+          reaction: reaction,
+          senderSeenAt: null,
+          receiverSeenAt: null
+        }
+      });
+
+      // Create the message in the new thread
+      const message = await tx.message.create({
+        data: {
+          threadId: thread.id,
+          senderId,
+          content: content.trim()
         },
         include: {
           sender: {
@@ -108,19 +118,12 @@ export async function POST(request: NextRequest) {
               walletAddress: true,
               profilePictureUrl: true
             }
-          },
-          receiver: {
-            select: {
-              userNickname: true,
-              walletAddress: true
-            }
           }
         }
       });
 
       // Handle CATI transfer if amount > 0
       if (catiAmount > 0) {
-        // Deduct from sender
         await tx.user.update({
           where: { id: senderId },
           data: {
@@ -130,7 +133,6 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        // Add to receiver
         await tx.user.update({
           where: { id: receiverId },
           data: {
@@ -140,7 +142,6 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        // Record transaction for sender (debit)
         await tx.catiTransaction.create({
           data: {
             userId: senderId,
@@ -151,7 +152,6 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        // Record transaction for receiver (credit)
         await tx.catiTransaction.create({
           data: {
             userId: receiverId,
@@ -163,23 +163,20 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      return message;
+      return { thread, message };
     });
 
     // Convert BigInt to string for JSON serialization
     const response = {
-      id: result.id.toString(),
-      content: result.content,
+      threadId: result.thread.id.toString(),
+      messageId: result.message.id.toString(),
+      content: result.message.content,
       catiAmount,
-      createdAt: result.createdAt,
+      createdAt: result.message.createdAt,
       sender: {
-        nickname: result.sender.userNickname,
-        walletAddress: result.sender.walletAddress,
-        profilePictureUrl: result.sender.profilePictureUrl
-      },
-      receiver: {
-        nickname: result.receiver.userNickname,
-        walletAddress: result.receiver.walletAddress
+        nickname: result.message.sender.userNickname,
+        walletAddress: result.message.sender.walletAddress,
+        profilePictureUrl: result.message.sender.profilePictureUrl
       }
     };
 

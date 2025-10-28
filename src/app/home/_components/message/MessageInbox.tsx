@@ -6,11 +6,9 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import MessageDialog from './MessageDialog';
 
-interface Message {
+
+interface Thread {
   id: string;
-  content: string;
-  createdAt: string;
-  seenAt?: string | null;
   sender: {
     nickname: string;
     walletAddress: string;
@@ -21,6 +19,12 @@ interface Message {
     walletAddress: string;
     profilePictureUrl?: string;
   };
+  latestMessage: {
+    id: string;
+    content: string;
+    createdAt: string;
+    senderId: string;
+  } | null;
   isCurrentUserSender: boolean;
   isCurrentUserReceiver: boolean;
   displayName: string;
@@ -35,16 +39,24 @@ interface MessageInboxProps {
 
 function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProps) {
   const { isAuthenticated } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<{
+    threadId: string;
+    sender: Thread['sender'];
+    receiver: Thread['receiver'];
+    isCurrentUserSender: boolean;
+    isCurrentUserReceiver: boolean;
+    displayName: string;
+    displayWalletAddress: string;
+  } | null>(null);
   const inboxRef = useRef<HTMLDivElement>(null);
 
-  const fetchMessages = async () => {
+  const fetchThreads = async () => {
     if (!isAuthenticated) {
-      setMessages([]);
+      setThreads([]);
       return;
     }
 
@@ -52,11 +64,11 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
     try {
       const token = localStorage.getItem('opencati_auth_token');
       if (!token) {
-        setMessages([]);
+        setThreads([]);
         return;
       }
 
-      const response = await fetch('/api/messages/all', {
+      const response = await fetch('/api/threads/all', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -64,14 +76,14 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch messages');
+        throw new Error('Failed to fetch threads');
       }
 
       const data = await response.json();
-      setMessages(data.messages || []);
+      setThreads(data.threads || []);
     } catch (error) {
-      console.error('Error fetching messages:', error);
-      setMessages([]);
+      console.error('Error fetching threads:', error);
+      setThreads([]);
     } finally {
       setLoading(false);
     }
@@ -79,7 +91,7 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
 
   useEffect(() => {
     if (isOpen && isAuthenticated) {
-      fetchMessages();
+      fetchThreads();
     }
   }, [isOpen, isAuthenticated]);
 
@@ -107,7 +119,6 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
 
   const handleDeleteAll = async () => {
     if (!isAuthenticated) return;
-    
     setDeletingAll(true);
     try {
       const token = localStorage.getItem('opencati_auth_token');
@@ -115,7 +126,6 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
         console.error('No auth token found');
         return;
       }
-
       const response = await fetch('/api/messages/remove', {
         method: 'POST',
         headers: {
@@ -124,86 +134,74 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
         },
         body: JSON.stringify({ deleteAll: true })
       });
-
       const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete all messages');
+        throw new Error(result.error || 'Failed to delete all threads');
       }
-
-      // Clear messages from UI
-      setMessages([]);
-      console.log('Deleted all messages:', result.totalDeleted);
-      
+      // Clear threads from UI
+      setThreads([]);
+      console.log('Deleted all threads:', result.totalDeleted);
     } catch (error) {
-      console.error('Error deleting all messages:', error);
+      console.error('Error deleting all threads:', error);
       // Optionally show error toast here
     } finally {
       setDeletingAll(false);
     }
   };
 
-  const handleDeleteMessage = async (messageId: string) => {
+  const handleDeleteThread = async (threadId: string) => {
     if (!isAuthenticated) return;
-    
-    // Add to deleting set to show loading state
-    setDeletingIds(prev => new Set(prev).add(messageId));
-    
+    setDeletingIds(prev => new Set(prev).add(threadId));
     try {
       const token = localStorage.getItem('opencati_auth_token');
       if (!token) {
         console.error('No auth token found');
         return;
       }
-
       const response = await fetch('/api/messages/remove', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ messageId })
+        body: JSON.stringify({ threadId })
       });
-
       const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete message');
+        throw new Error(result.error || 'Failed to delete thread');
       }
-
-      // Remove message from UI
-      setMessages(prev => prev.filter(msg => msg.id !== messageId));
-      console.log('Message deleted successfully');
-      
+      // Remove thread from UI
+      setThreads(prev => prev.filter(thread => thread.id !== threadId));
+      console.log('Thread deleted successfully');
     } catch (error) {
-      console.error('Error deleting message:', error);
+      console.error('Error deleting thread:', error);
       // Optionally show error toast here
     } finally {
-      // Remove from deleting set
       setDeletingIds(prev => {
         const newSet = new Set(prev);
-        newSet.delete(messageId);
+        newSet.delete(threadId);
         return newSet;
       });
     }
   };
 
-  const handleMessageClick = (message: Message) => {
-    setSelectedMessage(message);
+  const handleThreadClick = (thread: Thread) => {
+    setSelectedMessage({
+      threadId: thread.id,
+      sender: thread.sender,
+      receiver: thread.receiver,
+      isCurrentUserSender: thread.isCurrentUserSender,
+      isCurrentUserReceiver: thread.isCurrentUserReceiver,
+      displayName: thread.displayName,
+      displayWalletAddress: thread.displayWalletAddress,
+    });
   };
 
   const handleCloseDialog = () => {
     setSelectedMessage(null);
   };
 
-  const handleMessageRead = (messageId: string) => {
-    // Update local state to mark message as read
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId 
-        ? { ...msg, seenAt: new Date().toISOString() }
-        : msg
-    ));
-  };
+  // Remove handleMessageRead and setMessages logic, as threads API does not provide seenAt or message-level read state
 
   const getReactionIcon = (reaction: string) => {
     switch (reaction) {
@@ -239,43 +237,46 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
         </Button>
       </div>
 
-      {/* Messages List */}
+      {/* Threads List */}
       <div className="max-h-96 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center p-8">
-            <div className="text-gray-500">Loading messages...</div>
+            <div className="text-gray-500">Loading threads...</div>
           </div>
-        ) : messages.length === 0 ? (
+        ) : threads.length === 0 ? (
           <div className="flex items-center justify-center p-8">
-            <div className="text-gray-500">No messages</div>
+            <div className="text-gray-500">No threads</div>
           </div>
         ) : (
           <div className="p-2">
-            {messages.map((message) => {
-              const isUnread = message.isCurrentUserReceiver && !message.seenAt;
-              
+            {threads.map((thread) => {
+              // Always display the other party (not the current user)
+              const otherParty = thread.isCurrentUserSender ? thread.receiver : thread.sender;
+              const isUnread = false;
               return (
                 <div
-                  key={message.id}
-                  className={`flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg border-b border-gray-100 last:border-b-0 cursor-pointer
-                  `}
-                  onClick={() => handleMessageClick(message)}
+                  key={thread.id}
+                  className={`flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg border-b border-gray-100 last:border-b-0 cursor-pointer`}
+                  onClick={() => handleThreadClick(thread)}
                 >
                   {/* Avatar with unread indicator */}
                   <div className="flex-shrink-0 relative">
                     <div className="w-10 h-10 bg-gray-300 rounded-lg flex items-center justify-center">
-                      <div className="w-6 h-6 bg-gray-500 rounded"></div>
+                      {otherParty.profilePictureUrl ? (
+                        <img src={otherParty.profilePictureUrl} alt={otherParty.nickname} className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-6 h-6 bg-gray-500 rounded"></div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Message Content */}
+                  {/* Thread Content */}
                   <div className="flex-1 min-w-0">
-                    {/* Sender name */}
+                    {/* Other party name */}
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <h4 className={`${message.isCurrentUserSender ? 'text-gray-600' : 'text-blue-600'} 
-                        ${isUnread ? 'font-semibold' : 'font-medium'} text-sm truncate`}>
-                          {message.isCurrentUserSender ? 'You' : message.displayName}
+                        <h4 className={`text-blue-600 ${isUnread ? 'font-semibold' : 'font-medium'} text-sm truncate`}>
+                          {otherParty.nickname}
                         </h4>
                         {isUnread && (
                           <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
@@ -286,11 +287,11 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteMessage(message.id);
+                          handleDeleteThread(thread.id);
                         }}
-                        disabled={deletingIds.has(message.id)}
+                        disabled={deletingIds.has(thread.id)}
                         className={`p-0 h-auto transition-colors ${
-                          deletingIds.has(message.id) 
+                          deletingIds.has(thread.id) 
                             ? 'text-gray-300 cursor-not-allowed' 
                             : 'text-gray-400 hover:text-red-500'
                         }`}
@@ -299,17 +300,12 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
                       </Button>
                     </div>
 
-                    {/* Message text */}
+                    {/* Latest message text */}
                     <p className={`text-gray-700 text-sm mb-2 line-clamp-2 ${
                       isUnread ? 'font-medium' : ''
                     }`}>
-                      {message.content}
+                      {thread.latestMessage ? thread.latestMessage.content : '(No messages yet)'}
                     </p>
-
-                    {/* Timestamp */}
-                    <div className="text-xs text-gray-500">
-                      {new Date(message.createdAt).toLocaleString()}
-                    </div>
                   </div>
                 </div>
               );
@@ -323,8 +319,7 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
         <MessageDialog
           isOpen={!!selectedMessage}
           onClose={handleCloseDialog}
-          messageId={selectedMessage.id}
-          onMessageRead={handleMessageRead}
+          threadId={selectedMessage.threadId}
           onUnreadCountUpdate={onUnreadCountUpdate}
         />
       )}

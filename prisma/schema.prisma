@@ -29,8 +29,8 @@ model User {
   deposits          Deposit[]
   authSessions      AuthSession[]
   sentMessages      Message[] @relation("msg_sender")
-  receivedMessages  Message[] @relation("msg_receiver")
-  replySent         MessageReply[]  @relation("msg_reply_sender")
+  sentThreads       Thread[] @relation("ThreadSender")
+  receivedThreads   Thread[] @relation("ThreadReceiver")
 
   @@map("users")
 }
@@ -62,7 +62,7 @@ model CardBroadcast {
 
   // Relations
   userCard UserCard @relation(fields: [user_card_id], references: [id])
-  messages Message[]
+  threads  Thread[]
   @@map("card_broadcasts")
 }
 
@@ -72,42 +72,40 @@ enum MessageReaction {
   THUMBSUP
 }
 
-model Message {
-  id                BigInt        @id @default(autoincrement())
-  senderId          BigInt        @map("sender_id")
-  receiverId        BigInt        @map("receiver_id")
-  broadcastId       BigInt        @map("broadcast_id")
-  content           String        @db.Text
-  hasReply          Boolean       @default(false) @map("has_reply")
-  senderDeletedAt   DateTime?     @map("sender_deleted_at")
-  receiverDeletedAt DateTime?     @map("receiver_deleted_at")
-  seenAt            DateTime?     @map("seen_at")
+model Thread {
+  id                BigInt           @id @default(autoincrement())
+  senderId          BigInt           @map("sender_id")
+  receiverId        BigInt           @map("receiver_id")
+  broadcastId       BigInt           @map("broadcast_id")
   reaction          MessageReaction? @map("reaction")
-  createdAt         DateTime      @default(now()) @map("created_at")
-  updatedAt         DateTime      @default(now()) @map("updated_at")
+  senderSeenAt      DateTime?        @map("sender_seen_at")
+  receiverSeenAt    DateTime?        @map("receiver_seen_at")
+  senderDeletedAt   DateTime?        @map("sender_deleted_at")
+  receiverDeletedAt DateTime?        @map("receiver_deleted_at")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @default(now()) @map("updated_at")
 
-  sender            User          @relation("msg_sender",   fields: [senderId], references: [id])
-  receiver          User          @relation("msg_receiver", fields: [receiverId], references: [id])
-  broadcast         CardBroadcast @relation(fields: [broadcastId], references: [id])
-  messageReply      MessageReply?
+  sender            User             @relation("ThreadSender", fields: [senderId], references: [id])
+  receiver          User             @relation("ThreadReceiver", fields: [receiverId], references: [id])
+  broadcast         CardBroadcast    @relation(fields: [broadcastId], references: [id])
+  messages          Message[]
 
-  @@map("messages")
+  @@unique([senderId, receiverId, broadcastId])
+  @@map("threads")
 }
 
-model MessageReply {
-  id          BigInt   @id @default(autoincrement())
-  messageId   BigInt   @map("message_id")
-  senderId    BigInt   @map("sender_id")
-  content     String   @db.VarChar(255)
-  seenAt      DateTime?                @map("seen_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @map("updated_at")
+model Message {
+  id        BigInt   @id @default(autoincrement())
+  threadId  BigInt   @map("thread_id")
+  senderId  BigInt   @map("sender_id")
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
 
-  message     Message  @relation(fields: [messageId], references: [id])
-  sender      User     @relation("msg_reply_sender", fields: [senderId], references: [id])
+  thread    Thread   @relation(fields: [threadId], references: [id])
+  sender    User     @relation("msg_sender", fields: [senderId], references: [id])
 
-  @@unique([messageId])
-  @@map("message_replies")
+  @@map("messages")
 }
 
 model Season {
