@@ -110,6 +110,8 @@ export async function GET(request: NextRequest) {
         isCurrentUserReceiver,
         displayName: isCurrentUserSender ? thread.receiver.userNickname : thread.sender.userNickname,
         displayWalletAddress: isCurrentUserSender ? thread.receiver.walletAddress : thread.sender.walletAddress,
+        senderSeenAt: thread.senderSeenAt,
+        receiverSeenAt: thread.receiverSeenAt,
       };
     });
 

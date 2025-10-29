@@ -105,7 +105,8 @@ export async function POST(req: NextRequest) {
       const usersWithCardOpening = eligibleUsers.filter(user => user.cardOpenCount >= 2);
       
       if (usersWithCardOpening.length > 0) {
-        const distributionAmount = Math.floor(tip_cati / usersWithCardOpening.length);
+      // eighth digit after decimal
+      const distributionAmount = Math.floor((tip_cati / usersWithCardOpening.length) * 1e8) / 1e8;
         
         if (distributionAmount > 0) {
           // Create a transaction to update all eligible users' balances and record transactions

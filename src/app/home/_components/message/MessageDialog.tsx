@@ -54,6 +54,29 @@ interface MessageDialogProps {
 }
 
 function MessageDialog({ isOpen, onClose, threadId, onUnreadCountUpdate }: MessageDialogProps) {
+  const { user } = useAuth();
+  // Mark thread as read when dialog opens
+  useEffect(() => {
+    const markThreadRead = async () => {
+      if (!isOpen || !threadId || !user?.id) return;
+      try {
+        const token = localStorage.getItem('opencati_auth_token');
+        if (!token) return;
+        await fetch('/api/threads/read', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ threadId })
+        });
+        if (onUnreadCountUpdate) onUnreadCountUpdate();
+      } catch (err) {
+        // Silently ignore errors
+      }
+    };
+    markThreadRead();
+  }, [isOpen, threadId, user?.id]);
   const [threadData, setThreadData] = useState<ThreadData | null>(null);
   const [loading, setLoading] = useState(false);
   const [replyMessage, setReplyMessage] = useState('');
@@ -63,7 +86,7 @@ function MessageDialog({ isOpen, onClose, threadId, onUnreadCountUpdate }: Messa
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const presetAmounts = [10, 100, 1000];
-  const { user } = useAuth();
+
   const getReactionIcon = (reaction: string) => {
     switch (reaction?.toLowerCase()) {
       case 'heart':
@@ -253,7 +276,8 @@ function MessageDialog({ isOpen, onClose, threadId, onUnreadCountUpdate }: Messa
                     {threadData.messages.length === 0 ? (
                       <div className="text-gray-500 text-sm">No messages yet.</div>
                     ) : (
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-2 overflow-y-auto
+                      max-h-[200px]">
                         {threadData.messages.map((msg) => {
                           // Ensure both are strings for comparison
                           const isCurrentUser = String(msg.sender.id) === String(user?.id);
@@ -267,14 +291,18 @@ function MessageDialog({ isOpen, onClose, threadId, onUnreadCountUpdate }: Messa
                                 <div className="w-8 h-8 rounded-full bg-gray-300 mr-2 mt-0.5" />
                               )}
                               <div
-                                className={`max-w-xs px-4 py-2 rounded-lg shadow-sm text-sm ${
-                                  isCurrentUser
-                                    ? 'bg-blue-500 text-white rounded-br-none'
-                                    : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                                }`}
+                                className={`max-w-[320px] min-w-[60px] px-4 py-2 shadow-sm text-sm break-words whitespace-pre-line 
+                                  ${
+                                    isCurrentUser
+                                      ? 'bg-blue-500 text-white'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}
                                 style={{
                                   backgroundColor: '#f3f4f6',
-                                  color: '#1f2937'
+                                  color: '#1f2937',
+                                  wordBreak: 'break-word',
+                                  overflowWrap: 'break-word',
+                                  maxWidth: '320px',
                                 }}
                               >
                                 <div className="flex items-center gap-2 mb-1">

@@ -26,17 +26,24 @@ export async function GET(request: NextRequest) {
 
     const currentUserId = BigInt(decoded.sub);
 
-    // Count unread messages where current user is receiver
-    const unreadCount = await prisma.message.count({
+    // Count unread threads for current user
+    const unreadThreadCount = await prisma.thread.count({
       where: {
-        receiverId: currentUserId,
-        receiverDeletedAt: null,
-        seenAt: null
+        OR: [
+          {
+            senderId: currentUserId,
+            senderSeenAt: null
+          },
+          {
+            receiverId: currentUserId,
+            receiverSeenAt: null
+          }
+        ]
       }
     });
-
+    console.log("UNREAD THREAD COUNT: " + unreadThreadCount);
     return NextResponse.json({
-      unreadCount: Number(unreadCount)
+      unreadThreadCount: Number(unreadThreadCount)
     });
 
   } catch (error) {

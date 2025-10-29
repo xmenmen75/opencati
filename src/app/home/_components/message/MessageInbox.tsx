@@ -29,6 +29,8 @@ interface Thread {
   isCurrentUserReceiver: boolean;
   displayName: string;
   displayWalletAddress: string;
+  senderSeenAt?: string | null;
+  receiverSeenAt?: string | null;
 }
 
 interface MessageInboxProps {
@@ -52,6 +54,8 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
     displayName: string;
     displayWalletAddress: string;
   } | null>(null);
+  // Used to force unread count update after dialog closes
+  const [refreshUnread, setRefreshUnread] = useState(false);
   const inboxRef = useRef<HTMLDivElement>(null);
 
   const fetchThreads = async () => {
@@ -94,6 +98,14 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
       fetchThreads();
     }
   }, [isOpen, isAuthenticated]);
+
+  // Refetch unread count when refreshUnread toggles
+  useEffect(() => {
+    if (refreshUnread && onUnreadCountUpdate) {
+      onUnreadCountUpdate();
+      setRefreshUnread(false);
+    }
+  }, [refreshUnread, onUnreadCountUpdate]);
 
   // Click away to close functionality
   useEffect(() => {
@@ -199,6 +211,9 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
 
   const handleCloseDialog = () => {
     setSelectedMessage(null);
+    // Refetch threads to update unread status
+    fetchThreads();
+    setRefreshUnread(true);
   };
 
   // Remove handleMessageRead and setMessages logic, as threads API does not provide seenAt or message-level read state
@@ -252,7 +267,10 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
             {threads.map((thread) => {
               // Always display the other party (not the current user)
               const otherParty = thread.isCurrentUserSender ? thread.receiver : thread.sender;
-              const isUnread = false;
+              // Show blue dot if senderSeenAt is null and current user is sender, or receiverSeenAt is null and current user is receiver
+              const isUnread = (thread.isCurrentUserSender && thread.senderSeenAt === null) ||
+                               (thread.isCurrentUserReceiver && thread.receiverSeenAt === null);
+                               console.log("THREAD " + JSON.stringify(thread) + " IS UNREAD: " + isUnread);
               return (
                 <div
                   key={thread.id}

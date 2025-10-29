@@ -83,6 +83,22 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Set seen status to null for the other party
+    let updateSeen: any = {};
+    if (currentUserId === thread.sender.id) {
+      // Sender sent the message, reset receiverSeenAt
+      updateSeen = { receiverSeenAt: null };
+    } else if (currentUserId === thread.receiver.id) {
+      // Receiver sent the message, reset senderSeenAt
+      updateSeen = { senderSeenAt: null };
+    }
+    if (Object.keys(updateSeen).length > 0) {
+      await prisma.thread.update({
+        where: { id: BigInt(threadId) },
+        data: updateSeen
+      });
+    }
+
     // Convert BigInt to string for JSON serialization
     const response = {
       id: message.id.toString(),

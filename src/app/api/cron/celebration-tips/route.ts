@@ -50,46 +50,36 @@ export async function POST(request: NextRequest) {
     for (const broadcast of eligibleBroadcasts) {
       try {
         console.log(`[CRON] Processing broadcast ${broadcast.id}...`);
-        
         const oneHourAfter = new Date(broadcast.createdAt.getTime() + 60 * 60 * 1000);
 
-        // Get messages sent to this broadcast within the 1-hour window
-        const broadcastMessages = await prisma.message.findMany({
+        // Find all threads created on this broadcast within 1 hour, not by the owner
+        const threads = await prisma.thread.findMany({
           where: {
             broadcastId: broadcast.id,
             createdAt: {
-              gte: broadcast.createdAt, 
-              lte: oneHourAfter, 
+              gte: broadcast.createdAt,
+              lte: oneHourAfter,
+            },
+            senderId: {
+              not: broadcast.userCard.user.id
             },
             reaction: {
               not: null
-            },
-            senderId: {
-              not: broadcast.userCard.user.id 
             }
           },
           include: {
-            sender: true,
-          },
+            sender: true
+          }
         });
 
-        // Get unique message senders (excluding broadcast owner)
         const broadcastOwnerId = broadcast.userCard.user.id;
-        const messageSenders = broadcastMessages
-          .reduce((unique: any[], msg: any) => {
-            // Double-check: ensure sender is not the broadcast owner
-            if (msg.sender.id !== broadcastOwnerId && !unique.find(u => u.id === msg.sender.id)) {
-              unique.push(msg.sender);
-            }
-            return unique;
-          }, []);
 
-        console.log(`[CRON] Broadcast ${broadcast.id}: Found ${broadcastMessages.length} messages, ${messageSenders.length} unique eligible senders (excluding owner ${broadcastOwnerId})`);
+        // Get unique sender IDs
+        const uniqueSenders = Array.from(new Set(threads.map(t => t.sender.id)));
 
-        if (messageSenders.length === 0) {
-          console.log(`[CRON] No eligible message senders for broadcast ${broadcast.id} (all messages were from owner or duplicates)`);
-          
-          // Mark as distributed even with no recipients to avoid reprocessing
+        if (uniqueSenders.length === 0) {
+          console.log(`[CRON] No eligible threads for broadcast ${broadcast.id} (no thread created by non-owner within 1 hour)`);
+          // Mark as distributed even with no recipient to avoid reprocessing
           await prisma.cardBroadcast.update({
             where: { id: broadcast.id },
             data: { tip_distributed: true }
@@ -97,28 +87,27 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Calculate tip per user (equal distribution)
-        // Truncate 9 digits after the point. 333.333333339 => 333.33333333
-        const tipPerUser = roundTo9(broadcast.tip_cati / messageSenders.length);
-        const tipPerUserBigInt = BigInt(tipPerUser);
+        // Distribute the tip equally among all unique thread creators
+  // eighth digit after decimal, store as atomic units (integer)
+  const tipPerUser = Math.floor((Number(broadcast.tip_cati) / uniqueSenders.length) * 1e8) / 1e8;
+  const tipPerUserAtomic = Math.floor((Number(broadcast.tip_cati) / uniqueSenders.length) * 1e8); // integer atomic units
+  const tipPerUserBigInt = BigInt(tipPerUserAtomic);
 
-        console.log(`[CRON] Distributing ${tipPerUser} CATI to ${messageSenders.length} users for broadcast ${broadcast.id}`);
+        console.log(`[CRON] Distributing ${tipPerUser} CATI to each of ${uniqueSenders.length} users for broadcast ${broadcast.id}`);
 
         // Use Prisma transaction to ensure atomicity
         const distributionResult = await prisma.$transaction(async (tx) => {
           const distributions = [];
-          
-          // Final safety check and process each sender within transaction
-          for (const sender of messageSenders) {
+          for (const senderId of uniqueSenders) {
             // Final safety check: never give tips to broadcast owner
-            if (sender.id === broadcastOwnerId) {
+            if (senderId === broadcastOwnerId) {
               console.error(`[CRON] SAFETY CHECK FAILED: Almost gave tip to broadcast owner ${broadcastOwnerId} for broadcast ${broadcast.id}`);
               continue;
             }
 
             // Update user balance within transaction
             await tx.user.update({
-              where: { id: sender.id },
+              where: { id: senderId },
               data: {
                 catiBalance: {
                   increment: tipPerUserBigInt
@@ -129,7 +118,7 @@ export async function POST(request: NextRequest) {
             // Create transaction record within transaction
             const transaction = await tx.catiTransaction.create({
               data: {
-                userId: sender.id,
+                userId: senderId,
                 type: 'CELEBRATION_TIP',
                 amount: tipPerUserBigInt,
                 description: `Celebration engagement reward from broadcast ${broadcast.id}`,
@@ -138,15 +127,17 @@ export async function POST(request: NextRequest) {
               }
             });
 
+            // Get sender nickname for reporting
+            const senderThread = threads.find(t => t.sender.id === senderId);
             distributions.push({
-              userId: sender.id.toString(),
-              userNickname: sender.userNickname,
+              userId: senderId.toString(),
+              userNickname: senderThread?.sender.userNickname || '',
               amount: tipPerUser,
               transactionId: transaction.id.toString()
             });
           }
 
-          // Only mark as distributed if all distributions succeeded
+          // Mark as distributed
           await tx.cardBroadcast.update({
             where: { id: broadcast.id },
             data: { tip_distributed: true }
@@ -159,7 +150,7 @@ export async function POST(request: NextRequest) {
         totalTipsDistributed += tipPerUserBigInt * BigInt(distributionResult.length);
         totalDistributions += distributionResult.length;
 
-        console.log(`[CRON] Successfully distributed tips for broadcast ${broadcast.id}:`, {
+        console.log(`[CRON] Successfully distributed tip for broadcast ${broadcast.id}:`, {
           recipientCount: distributionResult.length,
           tipPerUser,
           totalForBroadcast: tipPerUser * distributionResult.length

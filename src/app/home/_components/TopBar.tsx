@@ -30,7 +30,7 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isMessageInboxOpen, setIsMessageInboxOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-
+  console.log("UNREAD COUNT " + unreadCount);
   const isConnectedAndAuthenticated = walletState.isConnected && isAuthenticated;
 
   const fetchUnreadCount = async () => {
@@ -46,7 +46,7 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
         return;
       }
 
-      const response = await fetch('/api/messages/get-unread', {
+      const response = await fetch('/api/threads/get-unread', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -55,7 +55,7 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
 
       if (response.ok) {
         const data = await response.json();
-        setUnreadCount(data.unreadCount || 0);
+        setUnreadCount(data.unreadThreadCount || 0);
       } else {
         setUnreadCount(0);
       }
