@@ -3,6 +3,7 @@ import { SiweMessage } from 'siwe';
 import { ethers } from 'ethers';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
+import { UserTeam } from '@prisma/client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -105,11 +106,15 @@ export async function POST(request: NextRequest) {
       
       // Use default nickname "Opencatier"
       const nickname = 'Opencatier';
+      // check if checksummedAddress is even or odd
+      const lastChar = checksummedAddress.slice(-1); // last character of checksummedAddress
+      const lastDigit = parseInt(lastChar, 16); // last digit of last character
 
       user = await prisma.user.create({
         data: {
           walletAddress: checksummedAddress,
           userNickname: nickname,
+          userTeam: lastDigit % 2 === 0 ? UserTeam.EVEN : UserTeam.ODD,
           catiBalance: BigInt(10000), // Welcome bonus: 10,000 CATI tokens
         },
       });

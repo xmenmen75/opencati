@@ -10,6 +10,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserTeam {
+  EVEN
+  ODD
+}
+
 model User {
   id                 BigInt   @id @default(autoincrement())
   walletAddress      String   @unique @map("wallet_address") @db.VarChar(255)
@@ -20,6 +25,7 @@ model User {
   catiBalance        BigInt   @default(0) @map("cati_balance")
   cardOpenCount      BigInt   @default(0)
   createdAt          DateTime @default(now()) @map("created_at")
+  userTeam           UserTeam @default(EVEN) @map("user_team")
 
   // Relations
   userCards         UserCard[]

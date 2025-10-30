@@ -33,8 +33,8 @@ interface BroadcastChannelProps {
 }
 
 function BroadcastChannel({ className }: BroadcastChannelProps) {
-  const [height, setHeight] = useState(160); // Default height showing some messages
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [height, setHeight] = useState(160); // Default height showing some messages
   const [loading, setLoading] = useState(true); // Start with loading true to prevent hydration mismatch
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
@@ -329,9 +329,6 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
           >
             <RotateCcw className={`h-3 w-3 text-gray-400 ${loading ? 'animate-spin' : ''}`} />
           </Button>
-          <div className="text-xs text-gray-400">
-            {isMinimal ? 'Drag up to expand' : 'Drag down to minimize'}
-          </div>
         </div>
       </div>
 
@@ -340,8 +337,8 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
         <div className="flex-1 border-t border-gray-700 overflow-hidden">
           <div 
             ref={messagesContainerRef}
-            className="overflow-y-auto bg-gray-900 p-2 space-y-2"
-            style={{ height: `${height - 80}px` }} // Subtract header and drag handle height (more accurate)
+            className="overflow-y-auto bg-gray-900 p-2 space-y-2 scrollbar-hide"
+            style={{ height: `${height - 80}px`, scrollbarWidth: 'none', msOverflowStyle: 'none' }} // Subtract header and drag handle height (more accurate)
             onScroll={handleScroll}
           >
 
@@ -378,72 +375,47 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
                 )}
                 
                 {/* Broadcast messages */}
-                {broadcasts.map((broadcast) => {
-                const self = broadcast.userCard.user.walletAddress === user?.walletAddress;
-                return (
-                <div key={broadcast.id} className={`rounded-lg p-3 border ${
-                  self 
-                    ? 'bg-blue-900/20 border-blue-700/50' 
-                    : 'bg-gray-800 border-gray-700'
-                }`}>
-                  {/* User info */}
-                  <div className="flex items-center gap-2 mb-2">
-                    {/* 0x904***6Ba */}
-                    <div 
-                      className={`${
-                        self 
-                          ? 'text-blue-300' 
-                          : 'cursor-pointer hover:underline hover:text-blue-300'
-                      }`}
-                      onClick={() => !self && handleUserClick(
-                          broadcast.userCard.user.userNickname,
-                          broadcast.userCard.user.walletAddress,
-                          broadcast.id
-                      )}
-                    >
-                      <span className={`text-sm font-medium ${
-                        self ? 'text-blue-300' : 'text-blue-400'
-                      }`}>
-                        {broadcast.userCard.user.walletAddress.trim().slice(0, 6) + 
-                        '***' + broadcast.userCard.user.walletAddress.trim().slice(-3)}
-                        &nbsp;
-                        {broadcast.userCard.user.userNickname}
-                        {self && ' (You)'}
-                      </span>
-                    </div>
-                    <span className="text-gray-500 text-xs">→</span>
-                    <span className={`text-xs font-bold ${getRankColor(broadcast.userCard.card.rank)}`}>
-                      {broadcast.userCard.card.rank}
-                    </span>
-                    <span className="text-gray-400 text-xs">
-                      {broadcast.userCard.card.name}
-                    </span>
-                    {/* Tip info */}
-                    {broadcast.tipCati > 0 && (
-                      <div className="flex items-center gap-1 text-xs">
-                        <Coins className="h-3 w-3 text-yellow-400" />
-                        <span className="text-yellow-400">
-                          {broadcast.tipCati} CATI tip
-                        </span>
-                        {broadcast.onlyCelebrate && (
-                          <span className="text-gray-400">• celebration only</span>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1 ml-auto">
-                      <Clock className="h-3 w-3 text-gray-500" />
-                      <span className="text-gray-500 text-xs">
-                        {formatTimeAgo(broadcast.createdAt)}
-                      </span>
-                    </div>
-                  </div>
 
-                  {/* Message content */}
-                  <div className="text-white text-sm mb-2">
-                    {broadcast.content}
-                  </div>
+                {/* All broadcasts in one box, no scrollbar */}
+                <div
+                  className="rounded-lg p-3 border bg-gray-800 border-gray-700 max-h-[250px] overflow-y-auto"
+                  style={{
+                    scrollbarWidth: 'none', // Firefox
+                    msOverflowStyle: 'none', // IE/Edge
+                    WebkitOverflowScrolling: 'touch',
+                  }}
+                >
+                  <style>{`
+                    .rounded-lg::-webkit-scrollbar { display: none; }
+                  `}</style>
+                  {broadcasts.map((broadcast) => {
+                    const self = broadcast.userCard.user.walletAddress === user?.walletAddress;
+                    return (
+                      <div key={broadcast.id} className="flex flex-row items-baseline 
+                      gap-[5px] mb-4 last:mb-0">
+                        <div className="flex mb-1">
+                          <span
+                            className={`text-sm font-medium underline
+                              ${self ? 'text-blue-300' : 'text-blue-400'} ${!self ? 'cursor-pointer hover:underline hover:text-blue-300' : ''}`}
+                            onClick={() => !self && handleUserClick(
+                              broadcast.userCard.user.userNickname,
+                              broadcast.userCard.user.walletAddress,
+                              broadcast.id
+                            )}
+                          >
+                            {broadcast.userCard.user.walletAddress.trim().slice(0, 6) +
+                              '***' + broadcast.userCard.user.walletAddress.trim().slice(-3)}
+                            &nbsp;
+                            {broadcast.userCard.user.userNickname}
+                            {self && ' (You)'}
+                          </span>
+                        </div>
+                        <span className="text-white">&gt;&gt;&gt;</span>
+                        <span className="text-white text-sm">{broadcast.content}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              )})}
                 
                 <div ref={messagesEndRef} />
               </>
