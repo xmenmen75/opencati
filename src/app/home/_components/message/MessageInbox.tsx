@@ -5,6 +5,8 @@ import { X, Heart, Sparkles, ThumbsUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import MessageDialog from './MessageDialog';
+import { getTeamColor } from '@/utils/team';
+import { UserTeam } from '@prisma/client';
 
 
 interface Thread {
@@ -13,11 +15,13 @@ interface Thread {
     nickname: string;
     walletAddress: string;
     profilePictureUrl?: string;
+    userTeam: UserTeam;
   };
   receiver: {
     nickname: string;
     walletAddress: string;
     profilePictureUrl?: string;
+    userTeam: UserTeam;
   };
   latestMessage: {
     id: string;
@@ -216,21 +220,6 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
     setRefreshUnread(true);
   };
 
-  // Remove handleMessageRead and setMessages logic, as threads API does not provide seenAt or message-level read state
-
-  const getReactionIcon = (reaction: string) => {
-    switch (reaction) {
-      case 'heart':
-        return <Heart className="h-3 w-3 text-red-400" fill="currentColor" />;
-      case 'confetti':
-        return <Sparkles className="h-3 w-3 text-yellow-400" fill="currentColor" />;
-      case 'thumbsup':
-        return <ThumbsUp className="h-3 w-3 text-blue-400" fill="currentColor" />;
-      default:
-        return null;
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -270,11 +259,12 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
               // Show blue dot if senderSeenAt is null and current user is sender, or receiverSeenAt is null and current user is receiver
               const isUnread = (thread.isCurrentUserSender && thread.senderSeenAt === null) ||
                                (thread.isCurrentUserReceiver && thread.receiverSeenAt === null);
-                               console.log("THREAD " + JSON.stringify(thread) + " IS UNREAD: " + isUnread);
               return (
                 <div
                   key={thread.id}
-                  className={`flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg border-b border-gray-100 last:border-b-0 cursor-pointer`}
+                  className={`flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg 
+                    border-b border-gray-100 last:border-b-0 cursor-pointer`}
+                  style={{backgroundColor: getTeamColor(otherParty.userTeam)}}
                   onClick={() => handleThreadClick(thread)}
                 >
                   {/* Avatar with unread indicator */}
@@ -293,7 +283,7 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
                     {/* Other party name */}
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <h4 className={`text-blue-600 ${isUnread ? 'font-semibold' : 'font-medium'} text-sm truncate`}>
+                        <h4 className={`text-blue-200 ${isUnread ? 'font-semibold' : 'font-medium'} text-sm truncate`}>
                           {otherParty.nickname}
                         </h4>
                         {isUnread && (
@@ -319,7 +309,7 @@ function MessageInbox({ isOpen, onClose, onUnreadCountUpdate }: MessageInboxProp
                     </div>
 
                     {/* Latest message text */}
-                    <p className={`text-gray-700 text-sm mb-2 line-clamp-2 ${
+                    <p className={`text-white text-sm mb-2 line-clamp-2 ${
                       isUnread ? 'font-medium' : ''
                     }`}>
                       {thread.latestMessage ? thread.latestMessage.content : '(No messages yet)'}

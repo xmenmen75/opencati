@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
             id: true,
             userNickname: true,
             walletAddress: true,
-            profilePictureUrl: true
+            profilePictureUrl: true,
+            userTeam: true
           }
         },
         receiver: {
@@ -52,7 +53,8 @@ export async function GET(request: NextRequest) {
             id: true,
             userNickname: true,
             walletAddress: true,
-            profilePictureUrl: true
+            profilePictureUrl: true,
+            userTeam: true
           }
         },
         messages: {
@@ -93,12 +95,14 @@ export async function GET(request: NextRequest) {
         sender: {
           nickname: thread.sender.userNickname,
           walletAddress: thread.sender.walletAddress,
-          profilePictureUrl: thread.sender.profilePictureUrl
+          profilePictureUrl: thread.sender.profilePictureUrl,
+          userTeam: thread.sender.userTeam
         },
         receiver: {
           nickname: thread.receiver.userNickname,
           walletAddress: thread.receiver.walletAddress,
-          profilePictureUrl: thread.receiver.profilePictureUrl
+          profilePictureUrl: thread.receiver.profilePictureUrl,
+          userTeam: thread.receiver.userTeam
         },
         latestMessage: latestMessage ? {
           id: latestMessage.id.toString(),

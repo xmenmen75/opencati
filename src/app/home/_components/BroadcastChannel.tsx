@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useBroadcastSSE } from '@/hooks/useBroadcastSSE';
 import { useAuth } from '@/hooks/useAuth';
 import CongratsDialog from './CongratsDialog';
+import { UserTeam } from '@prisma/client';
 
 interface Broadcast {
   id: string;
@@ -19,6 +20,7 @@ interface Broadcast {
       userNickname: string;
       profilePictureUrl?: string;
       walletAddress: string;
+      userTeam: UserTeam
     };
     card: {
       name: string;
@@ -48,6 +50,7 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
     nickname: string;
     walletAddress: string;
     broadcastId: string;
+    userTeam: UserTeam
   } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -231,12 +234,14 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
   };
 
   // Handle opening congrats dialog for a specific user
-  const handleUserClick = (nickname: string, walletAddress: string, broadcastId: string) => {
+  const handleUserClick = (nickname: string, walletAddress: string, broadcastId: string,
+    userTeam: UserTeam
+  ) => {
     // Don't allow users to send congrats to themselves
     if (user?.walletAddress === walletAddress) {
       return;
     }
-    setSelectedUser({ nickname, walletAddress, broadcastId });
+    setSelectedUser({ nickname, walletAddress, broadcastId, userTeam });
     setCongratsDialogOpen(true);
   };
 
@@ -294,7 +299,7 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
       </div>
     );
   }
-
+console.log(broadcasts[0])
   return (
     <div 
       ref={containerRef}
@@ -400,7 +405,8 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
                             onClick={() => !self && handleUserClick(
                               broadcast.userCard.user.userNickname,
                               broadcast.userCard.user.walletAddress,
-                              broadcast.id
+                              broadcast.id,
+                              broadcast.userCard.user.userTeam
                             )}
                           >
                             {broadcast.userCard.user.walletAddress.trim().slice(0, 6) +
@@ -431,6 +437,7 @@ function BroadcastChannel({ className }: BroadcastChannelProps) {
           onClose={handleCongratsDialogClose}
           recipientNickname={selectedUser.nickname}
           recipientWalletAddress={selectedUser.walletAddress}
+          recipientTeam={selectedUser.userTeam}
           broadcastId={selectedUser.broadcastId}
         />
       )}

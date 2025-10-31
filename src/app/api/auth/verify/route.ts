@@ -103,12 +103,19 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       console.log('Creating new user for address:', checksummedAddress);
-      
       // Use default nickname "Opencatier"
       const nickname = 'Opencatier';
-      // check if checksummedAddress is even or odd
-      const lastChar = checksummedAddress.slice(-1); // last character of checksummedAddress
-      const lastDigit = parseInt(lastChar, 16); // last digit of last character
+      // Find the last digit in the address (skip trailing alphabets)
+      let lastDigit: number | null = null;
+      for (let i = checksummedAddress.length - 1; i >= 0; i--) {
+        const char = checksummedAddress[i];
+        if (/[0-9]/.test(char)) {
+          lastDigit = parseInt(char, 10);
+          break;
+        }
+      }
+      // Fallback: if no digit found, use 0
+      if (lastDigit === null) lastDigit = 0;
 
       user = await prisma.user.create({
         data: {

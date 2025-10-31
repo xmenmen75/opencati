@@ -7,18 +7,23 @@ import { Input } from '@/components/ui/input';
 import { Heart, ThumbsUp, Plus, X, PartyPopper } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { getTeamColor } from '@/utils/team';
+import { UserTeam } from '@prisma/client';
 
 interface CongratsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   recipientNickname: string;
   recipientWalletAddress: string;
+  recipientTeam: UserTeam;
   broadcastId: string;
 }
 
 type Reaction = 'heart' | 'confetti' | 'thumbsup' | null;
 
-function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAddress, broadcastId }: CongratsDialogProps) {
+function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAddress, broadcastId,
+  recipientTeam
+ }: CongratsDialogProps) {
   const { isAuthenticated, user } = useAuth();
   const [message, setMessage] = useState('');
   const [selectedReaction, setSelectedReaction] = useState<Reaction>(null);
@@ -127,11 +132,14 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
     }
   };
 
+  const teamColor = getTeamColor(recipientTeam);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent showCloseButton={false} className="max-w-md bg-white p-6">
+      <DialogContent showCloseButton={false} className={`max-w-md bg-white p-6`}
+      style={{ backgroundColor: teamColor }}>
         <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="text-lg font-semibold text-gray-800">
+          <DialogTitle className="text-lg font-semibold text-white">
             Message to: {recipientNickname}
           </DialogTitle>
           <Button
@@ -146,7 +154,7 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
 
         {/* Recipient wallet address */}
         <div className="flex items-center gap-2 mb-4">
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-white">
             {recipientWalletAddress}
           </span>
           <div className="w-6 h-6 bg-gray-300 rounded flex items-center justify-center">
@@ -161,7 +169,8 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Enter your message..."
-              className="w-full p-3 pr-16 border-0 rounded-t-lg resize-none focus:outline-none bg-transparent"
+              className="w-full p-3 pr-16 
+              text-white border-0 rounded-t-lg resize-none focus:outline-none bg-transparent"
               maxLength={255}
               style={{ 
                 minHeight: '60px'
@@ -254,7 +263,7 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
               className="flex-1"
               min="1"
             />
-            <div className="flex items-center gap-1 text-sm font-medium text-gray-700">
+            <div className="flex items-center gap-1 text-sm font-medium text-white">
               CATI
             </div>
           </div>

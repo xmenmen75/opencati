@@ -1,7 +1,9 @@
-export function getTeamColor(userAddress: string): string {
-    // if userAddress ends with even digit, return blue, else return red
-    const lastChar = userAddress.slice(-1);
-    const lastDigit = parseInt(lastChar, 16); 
+import { UserTeam } from "@prisma/client";
 
-    return lastDigit % 2 === 0 ? '#4F726C' : '#9A8A9F';
+export function getTeamColor(team: UserTeam): string {
+    if(team === UserTeam.EVEN){
+        return "#4F726C"
+    }else {
+        return "#9A8A9F"
+    }
 }

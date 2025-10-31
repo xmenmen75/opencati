@@ -1,3 +1,4 @@
+import { UserTeam } from "@prisma/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface SSEBroadcast {
@@ -12,6 +13,7 @@ export interface SSEBroadcast {
       userNickname: string;
       profilePictureUrl?: string;
       walletAddress: string;
+      userTeam: UserTeam
     };
     card: { name: string; rank: string; rarityColor: string };
   };

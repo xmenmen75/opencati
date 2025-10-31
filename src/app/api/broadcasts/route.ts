@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
                 userNickname: true,
                 profilePictureUrl: true,
                 walletAddress: true,
+                userTeam: true
               },
             },
             card: {
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
           userNickname: broadcast.userCard.user.userNickname,
           profilePictureUrl: broadcast.userCard.user.profilePictureUrl,
           walletAddress: broadcast.userCard.user.walletAddress,
+          userTeam: broadcast.userCard.user.userTeam
         },
         card: {
           name: broadcast.userCard.card.name,
