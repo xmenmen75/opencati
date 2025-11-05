@@ -67,7 +67,7 @@ model CardBroadcast {
   createdAt       DateTime  @default(now()) @map("created_at")
 
   // Relations
-  userCard UserCard @relation(fields: [user_card_id], references: [id])
+  userCard UserCard @relation(fields: [user_card_id], references: [id], map: "card_broadcasts_user_card_id_fkey")
   threads  Thread[]
   @@map("card_broadcasts")
 }
@@ -91,12 +91,11 @@ model Thread {
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @default(now()) @map("updated_at")
 
-  sender            User             @relation("ThreadSender", fields: [senderId], references: [id])
-  receiver          User             @relation("ThreadReceiver", fields: [receiverId], references: [id])
-  broadcast         CardBroadcast    @relation(fields: [broadcastId], references: [id])
+  sender            User             @relation("ThreadSender", fields: [senderId], references: [id], map: "threads_sender_id_fkey")
+  receiver          User             @relation("ThreadReceiver", fields: [receiverId], references: [id], map: "threads_receiver_id_fkey")
+  broadcast         CardBroadcast    @relation(fields: [broadcastId], references: [id], map: "threads_broadcast_id_fkey")
   messages          Message[]
 
-  @@unique([senderId, receiverId, broadcastId])
   @@map("threads")
 }
 
@@ -108,8 +107,8 @@ model Message {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @map("updated_at")
 
-  thread    Thread   @relation(fields: [threadId], references: [id])
-  sender    User     @relation("msg_sender", fields: [senderId], references: [id])
+  thread    Thread   @relation(fields: [threadId], references: [id], map: "messages_thread_id_fkey")
+  sender    User     @relation("msg_sender", fields: [senderId], references: [id], map: "messages_sender_id_fkey")
 
   @@map("messages")
 }
@@ -144,8 +143,8 @@ model SeasonCard {
   createdAt                   DateTime @default(now()) @map("created_at")
 
   // Relations
-  season Season @relation(fields: [seasonId], references: [id])
-  card   Card   @relation(fields: [cardId], references: [id])
+  season Season @relation(fields: [seasonId], references: [id], map: "season_cards_season_id_fkey")
+  card   Card   @relation(fields: [cardId], references: [id], map: "season_cards_card_id_fkey")
 
   @@unique([seasonId, cardId])
   @@map("season_cards")
@@ -161,9 +160,9 @@ model UserCard {
   acquiredAt DateTime @default(now()) @map("acquired_at")
 
   // Relations
-  user   User   @relation(fields: [userId], references: [id])
-  card   Card   @relation(fields: [cardId], references: [id])
-  season Season @relation(fields: [seasonId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], map: "user_cards_user_id_fkey")
+  card   Card   @relation(fields: [cardId], references: [id], map: "user_cards_card_id_fkey")
+  season Season @relation(fields: [seasonId], references: [id], map: "user_cards_season_id_fkey")
   broadcasts CardBroadcast[]
 
   @@map("user_cards")
@@ -180,8 +179,8 @@ model SeasonReward {
   createdAt        DateTime  @default(now()) @map("created_at")
 
   // Relations
-  season Season @relation(fields: [seasonId], references: [id])
-  user   User   @relation(fields: [userId], references: [id])
+  season Season @relation(fields: [seasonId], references: [id], map: "season_rewards_season_id_fkey")
+  user   User   @relation(fields: [userId], references: [id], map: "season_rewards_user_id_fkey")
 
   @@map("season_rewards")
 }
@@ -197,7 +196,7 @@ model CatiTransaction {
   source      String   @default("OFFCHAIN") @db.VarChar(10) // OFFCHAIN or ONCHAIN
 
   // Relations
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], map: "cati_transactions_user_id_fkey")
 
   @@map("cati_transactions")
 }
@@ -212,7 +211,7 @@ model Withdrawal {
   txHash      String?   @map("tx_hash") @db.VarChar(255)
 
   // Relations
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], map: "withdrawals_user_id_fkey")
 
   @@map("withdrawals")
 }
@@ -227,7 +226,7 @@ model Deposit {
   txHash      String?   @map("tx_hash") @db.VarChar(255)
 
   // Relations
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], map: "deposits_user_id_fkey")
 
   @@map("deposits")
 }
@@ -252,7 +251,7 @@ model AuthSession {
   isRevoked Boolean  @default(false) @map("is_revoked")
 
   // Relations
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], map: "auth_sessions_user_id_fkey")
 
   @@map("auth_sessions")
 }

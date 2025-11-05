@@ -50,36 +50,42 @@ export async function POST(request: NextRequest) {
     for (const broadcast of eligibleBroadcasts) {
       try {
         console.log(`[CRON] Processing broadcast ${broadcast.id}...`);
-        const oneHourAfter = new Date(broadcast.createdAt.getTime() + 60 * 60 * 1000);
+        
+        // Calculate the 1-hour window from broadcast creation
+        const broadcastCreatedAt = broadcast.createdAt;
+        const oneHourAfterBroadcast = new Date(broadcastCreatedAt.getTime() + 60 * 60 * 1000);
+        const broadcastOwnerId = broadcast.userCard.user.id;
 
-        // Find all threads created on this broadcast within 1 hour, not by the owner
-        const threads = await prisma.thread.findMany({
+        console.log(`[CRON] Checking threads for broadcast ${broadcast.id} created between ${broadcastCreatedAt.toISOString()} and ${oneHourAfterBroadcast.toISOString()}`);
+
+        // Find all threads created within 1 hour of broadcast with reactions
+        const eligibleThreads = await prisma.thread.findMany({
           where: {
             broadcastId: broadcast.id,
             createdAt: {
-              gte: broadcast.createdAt,
-              lte: oneHourAfter,
+              gte: broadcastCreatedAt,
+              lte: oneHourAfterBroadcast,
             },
             senderId: {
-              not: broadcast.userCard.user.id
+              not: broadcastOwnerId // Exclude broadcast owner
             },
             reaction: {
-              not: null
+              not: null // Must have a reaction
             }
           },
           include: {
             sender: true
+          },
+          orderBy: {
+            createdAt: 'asc' // Order by creation time to see the timeline
           }
         });
 
-        const broadcastOwnerId = broadcast.userCard.user.id;
+        console.log(`[CRON] Found ${eligibleThreads.length} eligible threads for broadcast ${broadcast.id}`);
 
-        // Get unique sender IDs
-        const uniqueSenders = Array.from(new Set(threads.map(t => t.sender.id)));
-
-        if (uniqueSenders.length === 0) {
-          console.log(`[CRON] No eligible threads for broadcast ${broadcast.id} (no thread created by non-owner within 1 hour)`);
-          // Mark as distributed even with no recipient to avoid reprocessing
+        if (eligibleThreads.length === 0) {
+          console.log(`[CRON] No eligible threads for broadcast ${broadcast.id} (no threads with reactions within 1 hour by non-owner)`);
+          // Mark as distributed even with no recipients to avoid reprocessing
           await prisma.cardBroadcast.update({
             where: { id: broadcast.id },
             data: { tip_distributed: true }
@@ -87,18 +93,23 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Distribute the tip equally among all unique thread creators
-  // eighth digit after decimal, store as atomic units (integer)
-  const tipPerUser = Math.floor((Number(broadcast.tip_cati) / uniqueSenders.length) * 1e8) / 1e8;
-  const tipPerUserAtomic = Math.floor((Number(broadcast.tip_cati) / uniqueSenders.length) * 1e8); // integer atomic units
-  const tipPerUserBigInt = BigInt(tipPerUserAtomic);
+        // Get unique sender IDs - only count each user once per broadcast
+        const uniqueSenderIds = Array.from(new Set(eligibleThreads.map(thread => thread.senderId)));
+        
+        console.log(`[CRON] Unique users who created threads with reactions: ${uniqueSenderIds.length}`);
 
-        console.log(`[CRON] Distributing ${tipPerUser} CATI to each of ${uniqueSenders.length} users for broadcast ${broadcast.id}`);
+        // Calculate tip per unique user (using atomic units for precision)
+        const tipPerUserAtomic = Math.floor((Number(broadcast.tip_cati) / uniqueSenderIds.length) * 1e8);
+        const tipPerUserBigInt = BigInt(tipPerUserAtomic);
+        const tipPerUserDisplay = tipPerUserAtomic / 1e8;
+
+        console.log(`[CRON] Distributing ${tipPerUserDisplay} CATI (${tipPerUserAtomic} atomic units) to each of ${uniqueSenderIds.length} unique users for broadcast ${broadcast.id}`);
 
         // Use Prisma transaction to ensure atomicity
         const distributionResult = await prisma.$transaction(async (tx) => {
           const distributions = [];
-          for (const senderId of uniqueSenders) {
+          
+          for (const senderId of uniqueSenderIds) {
             // Final safety check: never give tips to broadcast owner
             if (senderId === broadcastOwnerId) {
               console.error(`[CRON] SAFETY CHECK FAILED: Almost gave tip to broadcast owner ${broadcastOwnerId} for broadcast ${broadcast.id}`);
@@ -127,12 +138,13 @@ export async function POST(request: NextRequest) {
               }
             });
 
-            // Get sender nickname for reporting
-            const senderThread = threads.find(t => t.sender.id === senderId);
+            // Get sender info for reporting (find first thread by this user)
+            const userThread = eligibleThreads.find(t => t.senderId === senderId);
             distributions.push({
               userId: senderId.toString(),
-              userNickname: senderThread?.sender.userNickname || '',
-              amount: tipPerUser,
+              userNickname: userThread?.sender.userNickname || '',
+              amount: tipPerUserDisplay,
+              threadCount: eligibleThreads.filter(t => t.senderId === senderId).length,
               transactionId: transaction.id.toString()
             });
           }
@@ -151,9 +163,14 @@ export async function POST(request: NextRequest) {
         totalDistributions += distributionResult.length;
 
         console.log(`[CRON] Successfully distributed tip for broadcast ${broadcast.id}:`, {
-          recipientCount: distributionResult.length,
-          tipPerUser,
-          totalForBroadcast: tipPerUser * distributionResult.length
+          uniqueRecipients: distributionResult.length,
+          tipPerUser: tipPerUserDisplay,
+          totalForBroadcast: tipPerUserDisplay * distributionResult.length,
+          distributions: distributionResult.map(d => ({
+            user: d.userNickname,
+            threadCount: d.threadCount,
+            amount: d.amount
+          }))
         });
 
       } catch (error) {

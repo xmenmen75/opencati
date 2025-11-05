@@ -85,7 +85,7 @@ function CongratsDialog({ isOpen, onClose, recipientNickname, recipientWalletAdd
         return;
       }
 
-      const response = await fetch('/api/messages/send-message', {
+      const response = await fetch('/api/broadcasts/congratulate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
