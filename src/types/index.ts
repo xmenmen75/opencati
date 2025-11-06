@@ -1,12 +1,14 @@
-import type { User, Card, Season, UserCard, SeasonReward, CatiTransaction, Withdrawal, Deposit } from '@prisma/client'
+import type { User, Card, Season, UserCard, SeasonReward, CatiTransaction, Withdrawal, Deposit, UsdDeposit, UsdTransaction } from '@prisma/client'
 
 // Enhanced types with relations
 export type UserWithRelations = User & {
   userCards: UserCard[]
   seasonRewards: SeasonReward[]
   catiTransactions: CatiTransaction[]
+  usdTransactions: UsdTransaction[]
   withdrawals: Withdrawal[]
   deposits: Deposit[]
+  usdDeposits: UsdDeposit[]
 }
 
 export type CardWithUserCards = Card & {
@@ -28,10 +30,14 @@ export type UserCardWithRelations = UserCard & {
 export type TransactionType = 'SPEND_DRAW' | 'SEASON_REWARD' | 'WITHDRAW' | 'DEPOSIT'
 export type TransactionSource = 'OFFCHAIN' | 'ONCHAIN'
 
+// USD Transaction types
+export type UsdTransactionType = 'DEPOSIT' | 'SPEND_DRAW'
+
 // Status types
 export type SeasonStatus = 'UPCOMING' | 'ACTIVE' | 'ENDED' | 'DISTRIBUTED'
 export type WithdrawalStatus = 'PENDING' | 'COMPLETED' | 'FAILED'
 export type DepositStatus = 'PENDING' | 'COMPLETED' | 'FAILED'
+export type UsdDepositStatus = 'PENDING' | 'COMPLETED' | 'FAILED'
 export type RewardStatus = 'PENDING' | 'DISTRIBUTED'
 
 // Card ranks

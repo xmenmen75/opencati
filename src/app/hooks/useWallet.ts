@@ -10,6 +10,11 @@ import {
   hasEnoughCatiBalance,
   getCatiTokenInfo,
 } from '@/lib/cati-token';
+import {
+  getUsdtTokenBalance,
+  transferUsdtToPlatform,
+  hasEnoughUsdtBalance,
+} from '@/lib/usdt-token';
 import type { WalletState } from '@/types/user';
 
 // MetaMask Ethereum provider types
@@ -29,6 +34,7 @@ const ACTIVE_CHAIN_ID = `0x${ACTIVE_NETWORK.chainId.toString(16)}`;
 
 interface TokenBalances {
   catiBalance: string;
+  usdtBalance: string;
   bnbBalance: string;
   isLoading: boolean;
   error: string | null;
@@ -53,6 +59,7 @@ export function useWallet() {
   // Token balances state
   const [balances, setBalances] = useState<TokenBalances>({
     catiBalance: '0',
+    usdtBalance: '0',
     bnbBalance: '0',
     isLoading: false,
     error: null,
@@ -75,12 +82,13 @@ export function useWallet() {
   const isCorrectNetwork = true; // For now, assume always correct
 
   /**
-   * Fetch token balances (CATI and BNB)
+   * Fetch token balances (CATI, USDT, and BNB)
    */
   const fetchBalances = useCallback(async () => {
     if (!walletState.address) {
       setBalances({
         catiBalance: '0',
+        usdtBalance: '0',
         bnbBalance: '0',
         isLoading: false,
         error: null,
@@ -111,13 +119,15 @@ export function useWallet() {
         throw new Error(`Wrong network. Connected to chain ${currentChainId}, expected ${ACTIVE_NETWORK.chainId} (${ACTIVE_NETWORK.name})`);
       }
 
-      const [cati, bnb] = await Promise.all([
+      const [cati, usdt, bnb] = await Promise.all([
         getCatiTokenBalance(walletState.address, provider),
+        getUsdtTokenBalance(walletState.address, provider),
         getBnbBalance(walletState.address, provider),
       ]);
 
       setBalances({
         catiBalance: cati,
+        usdtBalance: usdt,
         bnbBalance: bnb,
         isLoading: false,
         error: null,
@@ -192,6 +202,54 @@ export function useWallet() {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to deposit CATI',
+      };
+    } finally {
+      setIsTransferring(false);
+    }
+  }, [walletState.address, fetchBalances]);
+
+  /**
+   * Transfer USDT tokens to platform (deposit)
+   */
+  const depositUsdt = useCallback(async (amount: string): Promise<{
+    success: boolean;
+    txHash?: string;
+    error?: string;
+  }> => {
+    if (!walletState.address || !window.ethereum) {
+      return { success: false, error: 'Wallet not connected' };
+    }
+
+    setIsTransferring(true);
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      
+      // Check balance first
+      const hasBalance = await hasEnoughUsdtBalance(walletState.address, amount, provider);
+      
+      if (!hasBalance) {
+        setIsTransferring(false);
+        return { 
+          success: false, 
+          error: 'Insufficient USDT balance' 
+        };
+      }
+
+      // Execute transfer
+      const result = await transferUsdtToPlatform(amount, provider);
+      
+      // Refresh balances after transfer
+      if (result.success) {
+        await fetchBalances();
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error depositing USDT:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to deposit USDT',
       };
     } finally {
       setIsTransferring(false);
@@ -321,6 +379,7 @@ export function useWallet() {
     // Reset balances on disconnect
     setBalances({
       catiBalance: '0',
+      usdtBalance: '0',
       bnbBalance: '0',
       isLoading: false,
       error: null,
@@ -439,12 +498,14 @@ export function useWallet() {
     
     // Token balances and operations
     catiBalance: balances.catiBalance,
+    usdtBalance: balances.usdtBalance,
     bnbBalance: balances.bnbBalance,
     isLoadingBalances: balances.isLoading,
     balancesError: balances.error,
     tokenInfo,
     isTransferring,
     depositCati,
+    depositUsdt,
     refreshBalances,
     
     // Network info

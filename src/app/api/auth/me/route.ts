@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
         language: user.language,
         timezone: user.timezone,
         catiBalance: user.catiBalance.toString(),
+        usdBalance: user.usdBalance.toString(),
         createdAt: user.createdAt,
       },
     });

@@ -23,9 +23,10 @@ interface TopBarProps {
   onSettings: () => void;
   onOpenCardsDialog: () => void;
   onOpenCatiManagement: () => void;
+  onOpenUsdManagement: () => void;
 }
 
-export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCardsCount, totalPoolAmount, userRewardAmount, onchainBalance, onConnectWallet, onDisconnectWallet, onSettings, onOpenCardsDialog, onOpenCatiManagement }: TopBarProps) {
+export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCardsCount, totalPoolAmount, userRewardAmount, onchainBalance, onConnectWallet, onDisconnectWallet, onSettings, onOpenCardsDialog, onOpenCatiManagement, onOpenUsdManagement }: TopBarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isMessageInboxOpen, setIsMessageInboxOpen] = useState(false);
@@ -104,6 +105,18 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
               }`}
           >
             Cards: {isConnectedAndAuthenticated ? ownedCardsCount : 0}
+          </Button>
+
+          {/* USD balance button (LEFT of CATI button) */}
+          <Button
+            onClick={onOpenUsdManagement}
+            disabled={!isConnectedAndAuthenticated}
+            className={`backdrop-blur-sm shadow-lg px-3 py-2 h-auto ${isConnectedAndAuthenticated
+                ? 'bg-[#10b981] text-white hover:bg-[#10b981]/80 cursor-pointer'
+                : 'bg-[#10b981]/50 text-white/50 cursor-not-allowed hover:bg-[#10b981]/50'
+              }`}
+          >
+            USD: {isConnectedAndAuthenticated ? (parseFloat(user?.usdBalance || '0') / 1_000_000).toFixed(2) : '---'}
           </Button>
 
           {/* CATI balance button */}
@@ -266,6 +279,18 @@ export function TopBar({ walletState, user, isAuthenticated, isLoading, ownedCar
               >
                 <CreditCard className="h-5 w-5 mr-3" />
                 Cards: {ownedCardsCount}
+              </Button>
+
+              {/* USD Management button */}
+              <Button
+                onClick={() => {
+                  onOpenUsdManagement();
+                  handleMenuToggle();
+                }}
+                className="w-full justify-start bg-[#10b981] text-white hover:bg-[#10b981]/80 h-12"
+              >
+                <Coins className="h-5 w-5 mr-3" />
+                USD: {(parseFloat(user?.usdBalance || '0') / 1_000_000).toFixed(2)}
               </Button>
 
               {/* CATI Management button */}

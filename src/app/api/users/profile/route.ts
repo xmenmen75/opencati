@@ -146,6 +146,7 @@ export async function PUT(request: NextRequest) {
       language: updatedUser.language,
       timezone: updatedUser.timezone,
       catiBalance: updatedUser.catiBalance.toString(),
+      usdBalance: updatedUser.usdBalance.toString(),
       createdAt: updatedUser.createdAt,
     });
   } catch (error) {

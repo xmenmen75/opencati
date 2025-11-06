@@ -150,19 +150,20 @@ async function main() {
       console.log(`     - Drop Probability: ${config.dropProbability}% each`);
     });
 
-    // Update existing users with initial CATI balance if any exist
+    // Update existing users with initial CATI and USD balance if any exist
     const existingUsers = await prisma.user.findMany();
     if (existingUsers.length > 0) {
-      console.log('💰 Updating existing users with CATI balance...');
+      console.log('💰 Updating existing users with CATI and USD balance...');
       for (const user of existingUsers) {
         await prisma.user.update({
           where: { id: user.id },
           data: {
             catiBalance: BigInt('1000'), // 1000 CATI for testing
+            usdBalance: BigInt('10000000'), // 10 USD for testing (6 decimals = 10,000,000)
           },
         });
       }
-      console.log(`✅ Updated ${existingUsers.length} users with 1000 CATI each`);
+      console.log(`✅ Updated ${existingUsers.length} users with 1000 CATI and 10 USD each`);
     }
 
     console.log('🎉 Database seeding completed successfully!');

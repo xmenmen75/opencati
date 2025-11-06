@@ -6,6 +6,7 @@ import { TopBar } from '@/app/home/_components/TopBar';
 import { OwnedCardsDialog } from '@/app/home/_components/OwnedCardsDialog';
 import { SettingsDialog } from '@/app/home/_components/SettingsDialog';
 import { CatiManagementDialog } from '@/app/home/_components/CatiManagementDialog';
+import { UsdManagementDialog } from '@/app/home/_components/UsdManagementDialog';
 import BroadcastChannel from '@/app/home/_components/BroadcastChannel';
 import { LoadingPage } from '@/components/ui/Loading';
 import { Button } from '@/components/ui/button';
@@ -13,10 +14,24 @@ import { useWallet } from '../hooks/useWallet';
 import { useOwnedCards, useSeasonRewards, useActiveSeasons, useCurrentSeason } from '@/hooks/queries';
 
 function Home() {
-  const { walletState, user, isAuthenticated, connectWallet, disconnectWallet, isCorrectNetwork, authError, clearAuthError, authLoading, cancelAuthentication } = useWallet();
+  const { 
+    walletState, 
+    user, 
+    isAuthenticated, 
+    connectWallet, 
+    disconnectWallet, 
+    isCorrectNetwork, 
+    authError, 
+    clearAuthError, 
+    authLoading, 
+    cancelAuthentication,
+    usdtBalance,
+    depositUsdt
+  } = useWallet();
   const [isCardsDialogOpen, setIsCardsDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [isCatiManagementDialogOpen, setIsCatiManagementDialogOpen] = useState(false);
+  const [isUsdManagementDialogOpen, setIsUsdManagementDialogOpen] = useState(false);
   const [isPackAnimating, setIsPackAnimating] = useState(false);
   
   // Use React Query to fetch owned cards - only when user is authenticated
@@ -56,6 +71,10 @@ function Home() {
 
   const handleOpenCatiManagement = () => {
     setIsCatiManagementDialogOpen(true);
+  };
+
+  const handleOpenUsdManagement = () => {
+    setIsUsdManagementDialogOpen(true);
   };
 
   // Check if user can access the game interface (wallet connected, authenticated, correct network)
@@ -103,6 +122,7 @@ function Home() {
         onSettings={handleSettings}
         onOpenCardsDialog={handleOpenCardsDialog}
         onOpenCatiManagement={handleOpenCatiManagement}
+        onOpenUsdManagement={handleOpenUsdManagement}
       />
 
       {/* Main Content */}
@@ -246,6 +266,16 @@ function Home() {
         isOpen={isCatiManagementDialogOpen}
         onClose={() => setIsCatiManagementDialogOpen(false)}
         offchainBalance={user?.catiBalance || "0"}
+        user={user}
+      />
+
+      {/* USD Management Dialog */}
+      <UsdManagementDialog
+        isOpen={isUsdManagementDialogOpen}
+        onClose={() => setIsUsdManagementDialogOpen(false)}
+        usdBalance={user?.usdBalance}
+        onchainUsdtBalance={usdtBalance}
+        depositUsdt={depositUsdt}
         user={user}
       />
     </div>

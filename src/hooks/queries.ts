@@ -24,6 +24,9 @@ export const queryKeys = {
   transactions: {
     list: (limit: number, offset: number) => ['transactions', 'list', limit, offset] as const,
   },
+  usd: {
+    transactions: (limit: number, offset: number) => ['usd', 'transactions', limit, offset] as const,
+  },
 } as const;
 
 /**
@@ -265,4 +268,67 @@ export const useInvalidateUserData = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.cards.owned });
     queryClient.invalidateQueries({ queryKey: ['transactions'] });
   };
+};
+
+/**
+ * USD Transaction Hooks
+ */
+
+export const useUsdTransactions = (limit = 20, offset = 0) => {
+  return useQuery({
+    queryKey: queryKeys.usd.transactions(limit, offset),
+    queryFn: async () => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('opencati_auth_token') : null;
+      if (!token) throw new Error('Not authenticated');
+      
+      const response = await fetch(`/api/transactions/usd?limit=${limit}&offset=${offset}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch USD transactions');
+      }
+      
+      return response.json();
+    },
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+};
+
+export const useCreateUsdDeposit = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { amount: string; fromAddress: string; txHash: string }) => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('opencati_auth_token') : null;
+      if (!token) throw new Error('Not authenticated');
+      
+      const response = await fetch('/api/transactions/deposit/usd', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create USD deposit');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate USD transactions to show the new deposit
+      queryClient.invalidateQueries({ queryKey: ['usd'] });
+      
+      // Invalidate user data to update USD balance
+      queryClient.invalidateQueries({ queryKey: queryKeys.user.profile });
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
+    },
+  });
 };

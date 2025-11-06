@@ -3,17 +3,12 @@ import { prisma } from '@/lib/prisma';
 import { verifyJWT } from '@/lib/auth';
 import { selectRandomCard, type SeasonCardWithProbability } from '@/lib/card-selector';
 import { addComputedStatusToSeasons } from '@/lib/season-utils';
+import { getPackCostInBlockchainUnits, CurrencyType } from '@/lib/currency';
 
-// CATI cost per pack opening (reasonable amount)
-const PACK_COST = BigInt('500'); // 500 CATI
-
-function calculateCatiSpent(): bigint {
-  // All cards cost the same 500 CATI when opening packs
-  return PACK_COST; // 500 CATI for all ranks
-}
+// USD cost per pack opening - configured in currency.ts
+const PACK_COST = getPackCostInBlockchainUnits(); // 2 USD (with 6 decimals = 2000000)
 
 // Note: CATI reward calculation is now handled by cron jobs every 5 minutes
-// This function is no longer needed here
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,10 +45,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has enough CATI balance
-    if (user.catiBalance < PACK_COST) {
+    // Check if user has enough USD balance
+    if (user.usdBalance < PACK_COST) {
       return NextResponse.json(
-        { error: 'Insufficient CATI balance' },
+        { error: 'Insufficient USD balance. Pack opening costs 2 USD.' },
         { status: 400 }
       );
     }
@@ -136,13 +131,13 @@ export async function POST(request: NextRequest) {
     // Select a random card based on probabilities (with possible failure)
     const cardResult = selectRandomCard(cardsWithProbability);
 
-    // Start transaction - we always deduct CATI even on pack failure
+    // Start transaction - we always deduct USD even on pack failure
     const result = await prisma.$transaction(async (tx) => {
-      // Deduct CATI from user balance and increment cardOpenCount
+      // Deduct USD from user balance and increment cardOpenCount
       await tx.user.update({
         where: { id: userId },
         data: {
-          catiBalance: {
+          usdBalance: {
             decrement: PACK_COST,
           },
           cardOpenCount: {
@@ -151,32 +146,16 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Update season bid pool amount (always, regardless of card win/loss)
-      await tx.season.update({
-        where: { id: activeSeason.id },
-        data: {
-          bidPoolAmount: {
-            increment: PACK_COST,
-          },
-        },
-      });
+      // NOTE: Bid pool is DISABLED during USD migration (as per requirements)
+      // Do NOT increment season.bidPoolAmount
+      // The bid pool logic will be re-enabled later with multi-currency support
 
-      // Update season bid pool amount (always, regardless of card win/loss)
-      await tx.season.update({
-        where: { id: actualSeason.id },
-        data: {
-          bidPoolAmount: {
-            increment: PACK_COST,
-          },
-        },
-      });
-
-      // Create transaction record for the pack opening attempt
+      // Create USD transaction record for the pack opening attempt
       const transactionDescription = cardResult.success 
         ? `Opened pack and received ${cardResult.card!.name}`
         : `Opened pack but no card was won - ${cardResult.failureReason}`;
 
-      await tx.catiTransaction.create({
+      await tx.usdTransaction.create({
         data: {
           userId: userId,
           type: 'SPEND_DRAW',
@@ -189,20 +168,20 @@ export async function POST(request: NextRequest) {
       if (cardResult.success && cardResult.card) {
         // Pack was successful - create user card entry
         const selectedCard = cardResult.card;
-        const catiSpent = calculateCatiSpent();
 
         const userCard = await tx.userCard.create({
           data: {
             userId: userId,
             cardId: cardResult.card!.id,
             seasonId: actualSeason.id,
-            catiSpent: catiSpent,
+            catiSpent: BigInt(0), // Legacy field - 0 for USD-based openings
+            usdSpent: PACK_COST, // Track USD spent (2 USD with 6 decimals)
             catiReward: BigInt(0), // Initial reward, will be calculated by cron
           },
         });
 
-        // Update the transaction with the card reference
-        const transactionRecord = await tx.catiTransaction.findFirst({
+        // Update the USD transaction with the card reference
+        const transactionRecord = await tx.usdTransaction.findFirst({
           where: {
             userId: userId,
             type: 'SPEND_DRAW',
@@ -212,7 +191,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (transactionRecord) {
-          await tx.catiTransaction.update({
+          await tx.usdTransaction.update({
             where: { id: transactionRecord.id },
             data: { referenceId: userCard.id },
           });
@@ -240,6 +219,7 @@ export async function POST(request: NextRequest) {
           designer: result.selectedCard!.designer,
           poolSharePercentage: result.selectedCard!.poolSharePercentage.toString(),
           catiSpent: result.userCard!.catiSpent.toString(),
+          usdSpent: result.userCard!.usdSpent.toString(),
           catiReward: result.userCard!.catiReward.toString(),
           acquiredAt: result.userCard!.acquiredAt.toISOString(),
           season: {
@@ -249,15 +229,15 @@ export async function POST(request: NextRequest) {
           },
         },
         userCardId: result.userCard!.id.toString(),
-        newBalance: (user.catiBalance - PACK_COST).toString(),
+        newBalance: (user.usdBalance - PACK_COST).toString(),
       });
     } else {
       // Return pack failure
       return NextResponse.json({
         success: false,
         failureReason: result.failureReason,
-        message: "Pack opened but no card was won. Your CATI has been spent but better luck next time!",
-        newBalance: (user.catiBalance - PACK_COST).toString(),
+        message: "Pack opened but no card was won. Your USD has been spent but better luck next time!",
+        newBalance: (user.usdBalance - PACK_COST).toString(),
         season: {
           id: actualSeason.id.toString(),
           name: actualSeason.name,

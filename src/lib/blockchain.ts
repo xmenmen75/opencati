@@ -60,6 +60,17 @@ export const BSC_MAINNET_CONFIG = {
 // Active network configuration - CHANGE THIS TO SWITCH NETWORKS
 export const ACTIVE_NETWORK = BSC_MAINNET_CONFIG; // Change to BSC_TESTNET_CONFIG for testnet
 
+// USDT Token Contract Configuration
+export const USDT_TOKEN_CONFIG = {
+  // USDT contract address on BSC Mainnet
+  contractAddress: process.env.NEXT_PUBLIC_USDT_TOKEN_ADDRESS || '0x55d398326f99059fF775485246999027B3197955',
+  
+  // Standard ERC-20 ABI (same as CATI)
+  abi: CATI_TOKEN_CONFIG.abi,
+  
+  decimals: 6, // USDT uses 6 decimals
+};
+
 /**
  * Blockchain service for CATI token operations
  */
@@ -301,4 +312,148 @@ export function getCatiBlockchainService(): CatiBlockchainService {
     blockchainService = new CatiBlockchainService();
   }
   return blockchainService;
+}
+
+/**
+ * Blockchain service for USDT token operations
+ */
+export class UsdtBlockchainService {
+  private provider: ethers.JsonRpcProvider;
+  private platformWallet: ethers.Wallet;
+  private usdtContract: ethers.Contract;
+
+  constructor() {
+    // Initialize provider using active network
+    this.provider = new ethers.JsonRpcProvider(ACTIVE_NETWORK.rpcUrl);
+    
+    // Initialize platform wallet
+    if (!PLATFORM_WALLET_CONFIG.privateKey) {
+      throw new Error('Platform wallet private key not configured');
+    }
+    
+    this.platformWallet = new ethers.Wallet(PLATFORM_WALLET_CONFIG.privateKey, this.provider);
+    
+    // Initialize USDT token contract
+    this.usdtContract = new ethers.Contract(
+      USDT_TOKEN_CONFIG.contractAddress,
+      USDT_TOKEN_CONFIG.abi,
+      this.platformWallet
+    );
+  }
+
+  /**
+   * Get USDT token balance for a wallet address
+   */
+  async getUsdtBalance(walletAddress: string): Promise<string> {
+    try {
+      const balance = await this.usdtContract.balanceOf(walletAddress);
+      return ethers.formatUnits(balance, USDT_TOKEN_CONFIG.decimals);
+    } catch (error) {
+      console.error('Error getting USDT balance:', error);
+      throw new Error('Failed to get USDT balance');
+    }
+  }
+
+  /**
+   * Verify a USDT deposit transaction exists on the blockchain
+   */
+  async verifyDepositTransaction(txHash: string, expectedFromAddress: string, expectedAmount: string): Promise<{
+    isValid: boolean;
+    actualAmount?: string;
+    error?: string;
+  }> {
+    try {
+      // Get transaction receipt
+      const receipt = await this.provider.getTransactionReceipt(txHash);
+      
+      if (!receipt) {
+        return { isValid: false, error: 'Transaction not found' };
+      }
+
+      if (receipt.status !== 1) {
+        return { isValid: false, error: 'Transaction failed' };
+      }
+
+      // Parse transaction logs to find USDT transfer events
+      const transferEvents = receipt.logs
+        .filter(log => log.address.toLowerCase() === USDT_TOKEN_CONFIG.contractAddress.toLowerCase())
+        .map(log => {
+          try {
+            return this.usdtContract.interface.parseLog({
+              topics: log.topics,
+              data: log.data
+            });
+          } catch {
+            return null;
+          }
+        })
+        .filter(event => event && event.name === 'Transfer');
+
+      // Find the transfer to our platform wallet
+      const depositTransfer = transferEvents.find(event => 
+        event &&
+        event.args.from.toLowerCase() === expectedFromAddress.toLowerCase() &&
+        event.args.to.toLowerCase() === PLATFORM_WALLET_CONFIG.address.toLowerCase()
+      );
+
+      if (!depositTransfer) {
+        return { isValid: false, error: 'No valid transfer found to platform wallet' };
+      }
+
+      const actualAmount = ethers.formatUnits(depositTransfer.args.value, USDT_TOKEN_CONFIG.decimals);
+      const expectedAmountBN = ethers.parseUnits(expectedAmount, USDT_TOKEN_CONFIG.decimals);
+      const actualAmountBN = depositTransfer.args.value;
+
+      // Check if amounts match (with small tolerance for precision)
+      const tolerance = ethers.parseUnits('0.01', USDT_TOKEN_CONFIG.decimals); // 0.01 USDT tolerance
+      const diff = actualAmountBN > expectedAmountBN ? 
+        actualAmountBN - expectedAmountBN : 
+        expectedAmountBN - actualAmountBN;
+
+      if (diff > tolerance) {
+        return { 
+          isValid: false, 
+          error: `Amount mismatch. Expected: ${expectedAmount}, Actual: ${actualAmount}`,
+          actualAmount 
+        };
+      }
+
+      return { isValid: true, actualAmount };
+
+    } catch (error) {
+      console.error('Error verifying USDT deposit transaction:', error);
+      return { isValid: false, error: 'Failed to verify transaction' };
+    }
+  }
+
+  /**
+   * Check if platform wallet has enough USDT tokens
+   */
+  async checkPlatformBalance(): Promise<{
+    balance: string;
+    isLowBalance: boolean;
+    threshold: string;
+  }> {
+    const balance = await this.getUsdtBalance(PLATFORM_WALLET_CONFIG.address);
+    const threshold = '1000'; // 1,000 USDT minimum threshold
+    const isLowBalance = parseFloat(balance) < parseFloat(threshold);
+
+    return {
+      balance,
+      isLowBalance,
+      threshold,
+    };
+  }
+}
+
+/**
+ * Singleton instance of the USDT blockchain service
+ */
+let usdtBlockchainService: UsdtBlockchainService | null = null;
+
+export function getUsdtBlockchainService(): UsdtBlockchainService {
+  if (!usdtBlockchainService) {
+    usdtBlockchainService = new UsdtBlockchainService();
+  }
+  return usdtBlockchainService;
 }

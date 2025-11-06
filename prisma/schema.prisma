@@ -18,6 +18,7 @@ model User {
   language           String   @default("en") @db.VarChar(10)
   timezone           String   @default("UTC") @db.VarChar(50)
   catiBalance        BigInt   @default(0) @map("cati_balance")
+  usdBalance         BigInt   @default(0) @map("usd_balance") // USD balance with 6 decimals (USDT standard)
   cardOpenCount      BigInt   @default(0)
   createdAt          DateTime @default(now()) @map("created_at")
 
@@ -25,8 +26,10 @@ model User {
   userCards         UserCard[]
   seasonRewards     SeasonReward[]
   catiTransactions  CatiTransaction[]
+  usdTransactions   UsdTransaction[]
   withdrawals       Withdrawal[]
   deposits          Deposit[]
+  usdDeposits       UsdDeposit[]
   authSessions      AuthSession[]
   sentMessages      Message[] @relation("msg_sender")
   receivedMessages  Message[] @relation("msg_receiver")
@@ -114,7 +117,7 @@ model Season {
   id                    BigInt   @id @default(autoincrement())
   name                  String   @db.VarChar(100)
   slogan                String   @db.VarChar(100) // Like: big summer Event Season 1, Season 2, etc.
-  bidPoolAmount         BigInt   @map("bid_pool_amount") // Total bid CATI in season pool
+  bidPoolAmount         BigInt   @map("bid_pool_amount") // TEMPORARILY DISABLED - was Total bid CATI in season pool
   additionalTotalPool   BigInt   @map("additional_total_pool") // Total sponsor CATI in season pool
   startDate             DateTime @map("start_date")
   endDate               DateTime @map("end_date")
@@ -152,7 +155,8 @@ model UserCard {
   userId     BigInt   @map("user_id")
   cardId     Int      @map("card_id")
   seasonId   BigInt   @map("season_id")
-  catiSpent  BigInt   @map("cati_spent")
+  catiSpent  BigInt   @default(0) @map("cati_spent") // Legacy field - 0 for USD-based openings
+  usdSpent   BigInt   @default(0) @map("usd_spent") // USD spent with 6 decimals (USDT standard)
   catiReward BigInt   @map("cati_reward") // Calculated as: userBidAmount * userBidPoolPercentage + sponsorAmount * sponsorPoolPercentage
   acquiredAt DateTime @default(now()) @map("acquired_at")
 
@@ -251,4 +255,34 @@ model AuthSession {
   user User @relation(fields: [userId], references: [id])
 
   @@map("auth_sessions")
+}
+
+model UsdDeposit {
+  id          BigInt    @id @default(autoincrement())
+  userId      BigInt    @map("user_id")
+  amount      BigInt    // Amount in USD with 6 decimals (USDT standard)
+  status      String    @db.VarChar(20) // PENDING, COMPLETED, FAILED
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  completedAt DateTime? @map("completed_at")
+  txHash      String?   @map("tx_hash") @db.VarChar(255)
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("usd_deposits")
+}
+
+model UsdTransaction {
+  id          BigInt   @id @default(autoincrement())
+  userId      BigInt   @map("user_id")
+  type        String   @db.VarChar(20) // DEPOSIT, SPEND_DRAW
+  amount      BigInt   // Positive for deposits, negative for spending
+  description String   @db.VarChar(255)
+  referenceId BigInt?  @map("reference_id") // References user_card_id, usd_deposit_id, etc.
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("usd_transactions")
 }

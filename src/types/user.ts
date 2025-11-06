@@ -4,6 +4,7 @@ export interface User {
   userNickname: string;
   profilePictureUrl?: string;
   catiBalance: string; // String to handle BigInt conversion
+  usdBalance: string;  // String to handle BigInt conversion
   language?: string; // User's preferred language
   timezone?: string; // User's preferred timezone
   createdAt?: Date;
